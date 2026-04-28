@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Smoke Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      iframe {
+        width: 1280px;
+        height: 900px;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        background: white;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        background: #111827;
+        border-radius: 12px;
+        padding: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Smoke Test</h1>
+    <pre id="results">Rodando...</pre>
+    <iframe id="app-frame" src="./index.html"></iframe>
+    <script type="module" src="./js/browser-smoke-page.js"></script>
+  </body>
+</html>

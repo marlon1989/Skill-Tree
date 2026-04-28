@@ -1,0 +1,12 @@
+{
+  "name": "skill-tree",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve:static": "node tmp-static-server.cjs",
+    "test": "node --test",
+    "test:all": "npm test && npm run test:browser && npm run test:smoke",
+    "test:browser": "node browser-smoke.cjs",
+    "test:smoke": "node edge-cdp-smoke.cjs"
+  }
+}

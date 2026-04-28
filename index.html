@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skill Tree</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ["Cinzel", "serif"],
+              sans: ["Space Grotesk", "ui-sans-serif", "system-ui"],
+            },
+            boxShadow: {
+              glow: "0 18px 45px rgba(37, 99, 235, 0.16)",
+              node: "0 14px 30px rgba(15, 23, 42, 0.08)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 50% 40%, rgba(211, 166, 88, 0.08), transparent 18%),
+          radial-gradient(circle at 20% 18%, rgba(42, 113, 201, 0.18), transparent 28%),
+          radial-gradient(circle at 82% 16%, rgba(46, 208, 220, 0.12), transparent 24%),
+          linear-gradient(180deg, #07111e 0%, #091523 42%, #050b14 100%);
+      }
+
+      #app {
+        background:
+          radial-gradient(circle at 50% 48%, rgba(210, 162, 82, 0.1), transparent 18%),
+          radial-gradient(circle at 14% 16%, rgba(65, 131, 240, 0.08), transparent 24%),
+          radial-gradient(circle at 85% 18%, rgba(46, 208, 220, 0.08), transparent 20%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(6, 10, 19, 0.24));
+      }
+
+      #app::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1.5px) 12px 16px / 140px 140px,
+          radial-gradient(circle, rgba(255, 255, 255, 0.04) 0 1px, transparent 1.5px) 80px 72px / 190px 190px,
+          linear-gradient(115deg, transparent 0%, rgba(184, 146, 86, 0.04) 50%, transparent 100%);
+        opacity: 0.9;
+      }
+
+      #app::after {
+        content: "";
+        position: absolute;
+        inset: 24px;
+        pointer-events: none;
+        border: 1px solid rgba(166, 130, 72, 0.14);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+          0 0 80px rgba(7, 17, 30, 0.36);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen overflow-hidden bg-[#07111e] font-sans text-slate-900">
+    <div
+      id="app"
+      class="relative min-h-screen overflow-hidden bg-[#07111e]"
+    >
+      <div class="pointer-events-none absolute inset-0 opacity-100">
+        <div
+          class="absolute inset-0"
+          style="
+            background:
+              radial-gradient(circle at 50% 48%, rgba(211, 166, 88, 0.08), transparent 16%),
+              radial-gradient(circle at 50% 48%, rgba(211, 166, 88, 0.05), transparent 34%),
+              linear-gradient(90deg, rgba(166, 130, 72, 0.08), transparent 16%, transparent 84%, rgba(166, 130, 72, 0.08));
+          "
+        ></div>
+      </div>
+
+      <main
+        id="skill-tree-canvas"
+        class="relative h-screen w-screen cursor-default overflow-hidden px-6 py-8 md:px-10 md:py-10"
+        aria-label="Canvas da Skill Tree"
+        style="
+          background-image:
+            radial-gradient(circle, rgba(148, 163, 184, 0.22) 1px, transparent 1px),
+            radial-gradient(circle, rgba(211, 166, 88, 0.16) 1.4px, transparent 1.4px);
+          background-position: 0 0, 0 0;
+          background-size: 72px 72px, 288px 288px;
+        "
+      >
+        <div id="tree-stage" class="relative min-h-full min-w-full">
+          <svg
+            id="tree-connections"
+            class="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+            aria-hidden="true"
+          ></svg>
+
+          <div
+            id="tree-node-layer"
+            class="relative z-10 min-h-full min-w-full"
+            aria-live="polite"
+          ></div>
+        </div>
+      </main>
+
+      <div
+        id="context-menu"
+        class="fixed z-40 hidden min-w-[220px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-2xl backdrop-blur"
+        role="menu"
+        aria-hidden="true"
+        data-mastery-hub-id=""
+        data-node-id=""
+      >
+        <button
+          type="button"
+          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          data-action="create-root"
+          data-empty-canvas-action="true"
+          role="menuitem"
+        >
+          <span>Criar Nó de Origem</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Root</span>
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          data-action="add-child"
+          data-node-only-action="true"
+          role="menuitem"
+        >
+          <span>Adicionar Subtópico</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">+</span>
+        </button>
+        <button
+          type="button"
+          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          data-action="create-root"
+          data-subtopic-only-action="true"
+          role="menuitem"
+        >
+          <span>Criar Nó de Origem</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Root</span>
+        </button>
+        <button
+          type="button"
+          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-700 transition hover:bg-amber-50"
+          data-action="rename-mastery-hub"
+          data-mastery-hub-only-action="true"
+          role="menuitem"
+        >
+          <span>Renomear Maestria</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-amber-400">Hub</span>
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          data-action="rename"
+          data-node-only-action="true"
+          role="menuitem"
+        >
+          <span>Renomear</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Edit</span>
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          data-action="swap"
+          data-node-only-action="true"
+          role="menuitem"
+        >
+          <span>Trocar Posição</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Swap</span>
+        </button>
+        <button
+          type="button"
+          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-700 transition hover:bg-amber-50"
+          data-action="reset-root-progress"
+          data-node-only-action="true"
+          data-root-only-action="true"
+          role="menuitem"
+        >
+          <span>Resetar Progresso</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-amber-400">Reset</span>
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+          data-action="delete"
+          data-node-only-action="true"
+          role="menuitem"
+        >
+          <span>Deletar</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-rose-300">Del</span>
+        </button>
+      </div>
+
+      <div
+        id="node-hover-modal"
+        class="pointer-events-none fixed z-30 hidden min-w-[180px] rounded-2xl border border-white/15 bg-slate-950/88 px-4 py-3 shadow-2xl backdrop-blur-md"
+        aria-hidden="true"
+      >
+        <p
+          id="node-hover-modal-title"
+          class="text-sm font-bold leading-5 text-slate-50"
+        ></p>
+        <p
+          id="node-hover-modal-status"
+          class="mt-1 text-[11px] font-medium uppercase tracking-[0.24em] text-cyan-200/80"
+        ></p>
+      </div>
+
+      <div
+        id="boss-modal"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+        aria-hidden="true"
+      >
+        <div class="w-full max-w-xl rounded-[2rem] border border-white/60 bg-white p-6 shadow-2xl md:p-8">
+          <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p class="mb-2 text-xs font-medium uppercase tracking-[0.32em] text-amber-500">
+                Prova de Mestre
+              </p>
+              <h2 id="boss-modal-title" class="text-2xl font-bold text-slate-900">
+                Desafio final
+              </h2>
+              <p id="boss-modal-subtitle" class="mt-2 text-sm leading-6 text-slate-500">
+                Responda corretamente para concluir este domínio da árvore.
+              </p>
+            </div>
+          </div>
+
+          <section class="rounded-3xl bg-slate-50 p-5">
+            <p id="boss-modal-question" class="text-base font-medium leading-7 text-slate-800">
+              Qual é o resultado de 7 + 8?
+            </p>
+
+            <div id="boss-modal-options" class="mt-5 grid gap-3">
+              <button
+                type="button"
+                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                data-choice="0"
+              >
+                14
+              </button>
+              <button
+                type="button"
+                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                data-choice="1"
+              >
+                15
+              </button>
+              <button
+                type="button"
+                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                data-choice="2"
+              >
+                16
+              </button>
+            </div>
+          </section>
+
+          <div class="mt-6 flex items-center justify-end gap-3">
+            <button
+              id="boss-modal-confirm"
+              type="button"
+              class="rounded-full bg-blue-800 px-5 py-3 text-sm font-bold text-white shadow-glow transition hover:bg-blue-700"
+            >
+              Confirmar Resposta
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
