@@ -9,3 +9,8 @@ server.out.log
 
 coverage/
 dist/
+
+AGENT.md
+AGENTS.md
+PROJECT_MAP.md
+.codex/skills/caveman/
