@@ -10,6 +10,12 @@ const DEFAULT_BOSS_QUESTION = Object.freeze({
   options: ["3", "4", "5"],
   question: "Quanto é 2 + 2?",
 });
+const BOSS_ADVICE = Object.freeze({
+  options: [],
+  question: "",
+  subtitle: "Antes de prosseguir, é recomendável que você tenha tentado se autoexplicar, refletir ou resolver questões desse tópico.",
+  title: "Conselho",
+});
 
 const BOSS_QUESTION_MOCK = Object.freeze({
   "matematica basica": {
@@ -50,15 +56,16 @@ export function getBossQuestion(nodeId) {
 
   return {
     ...question,
-    subtitle: `Responda corretamente para dominar "${node.title}".`,
-    title: `Prova de Mestre · ${node.title}`,
+    ...BOSS_ADVICE,
   };
 }
 
 export function handleBossFight(nodeId, selectedAnswer) {
   const bossQuestion = getBossQuestion(nodeId);
   const selectedOption = bossQuestion.options[Number(selectedAnswer)] ?? String(selectedAnswer ?? "");
-  const outcome = battleOutcome(selectedOption, bossQuestion.correctAnswer);
+  const outcome = bossQuestion.options.length === 0
+    ? successOutcome()
+    : battleOutcome(selectedOption, bossQuestion.correctAnswer);
 
   hideBossModal();
   applyBattleOutcome(nodeId, outcome);
@@ -124,46 +131,64 @@ function successOutcome() {
 }
 
 function persistSuccessfulBattle(nodeId) {
-  const rootNodeId = rootAncestorIdOf(nodeId);
-  const previousRootProgress = progressOf(rootNodeId);
+  const originNodeIds = originAncestorIdsOf(nodeId);
+  const previousProgressByOrigin = progressByOrigin(originNodeIds);
 
   markNodeAsMastered(nodeId);
   renderApp();
 
-  if (!rootNodeId) {
+  if (originNodeIds.length === 0) {
     playVictorySfx();
     return;
   }
 
-  const nextRootProgress = masteredProgressFor(rootNodeId);
+  const nextProgressByOrigin = masteredProgressByOrigin(originNodeIds);
 
-  animateOriginProgress(rootNodeId, previousRootProgress, nextRootProgress, () => {
-    syncRootProgress(rootNodeId);
+  animateOriginProgressions(originNodeIds, previousProgressByOrigin, nextProgressByOrigin, () => {
+    originNodeIds.forEach(syncRootProgress);
     renderApp();
     playVictorySfx();
   });
 }
 
-function masteredProgressFor(rootNodeId) {
-  return masteredDescendantProgressPercent(
-    descendantIdsOf(rootNodeId),
-    (descendantNodeId) => state.nodesById[descendantNodeId]?.status === NODE_STATUS.MASTERED,
-  );
-}
-
-function descendantIdsOf(rootNodeId) {
-  const descendantNodeIds = [];
-
-  const visitChildren = (parentNodeId) => {
-    (state.childIdsByParent[parentNodeId] ?? []).forEach((childNodeId) => {
-      descendantNodeIds.push(childNodeId);
-      visitChildren(childNodeId);
-    });
+function animateOriginProgressions(originNodeIds, previousProgressByOrigin, nextProgressByOrigin, onComplete) {
+  let pendingAnimationCount = originNodeIds.length;
+  const completeOneAnimation = () => {
+    pendingAnimationCount -= 1;
+    pendingAnimationCount === 0 && onComplete();
   };
 
-  visitChildren(rootNodeId);
+  originNodeIds.forEach((originNodeId) => {
+    animateOriginProgress(
+      originNodeId,
+      previousProgressByOrigin[originNodeId],
+      nextProgressByOrigin[originNodeId],
+      completeOneAnimation,
+    );
+  });
+}
 
-  return descendantNodeIds;
+function progressByOrigin(originNodeIds) {
+  return Object.fromEntries(originNodeIds.map((originNodeId) => [
+    originNodeId,
+    progressOf(originNodeId),
+  ]));
+}
+
+function masteredProgressByOrigin(originNodeIds) {
+  return Object.fromEntries(originNodeIds.map((originNodeId) => [
+    originNodeId,
+    masteredProgressFor(originNodeId),
+  ]));
+}
+
+function masteredProgressFor(rootNodeId) {
+  return masteredDescendantProgressPercent({
+    childIdsOf: (parentNodeId) => state.childIdsByParent[parentNodeId] ?? [],
+    isMasteredNodeId: (descendantNodeId) => state.nodesById[descendantNodeId]?.status === NODE_STATUS.MASTERED,
+    isOriginNodeId: (descendantNodeId) => state.nodesById[descendantNodeId]?.nodeKind === "origin",
+    rootNodeId,
+  });
 }
 
 function progressOf(nodeId) {
@@ -174,18 +199,21 @@ function progressOf(nodeId) {
   return Number(state.nodesById[nodeId]?.progress ?? 0);
 }
 
-function rootAncestorIdOf(nodeId) {
+function originAncestorIdsOf(nodeId) {
+  const originNodeIds = [];
   let currentNode = state.nodesById[nodeId];
-  let currentNodeId = nodeId;
 
   if (!currentNode) {
-    return "";
+    return originNodeIds;
   }
 
-  while (currentNode.parentId !== null) {
-    currentNodeId = currentNode.parentId;
-    currentNode = state.nodesById[currentNodeId];
+  while (currentNode?.parentId !== null && currentNode?.parentId !== undefined) {
+    currentNode = state.nodesById[currentNode.parentId];
+
+    if (currentNode?.nodeKind === "origin") {
+      originNodeIds.push(currentNode.id);
+    }
   }
 
-  return currentNodeId === nodeId ? "" : currentNodeId;
+  return originNodeIds;
 }

@@ -25,6 +25,10 @@ export class NodeCollection {
     this.entries.set(node.identity().toString(), node);
   }
 
+  each(callback) {
+    this.entries.forEach(callback);
+  }
+
   remove(nodeId) {
     this.entries.delete(nodeId.toString());
   }

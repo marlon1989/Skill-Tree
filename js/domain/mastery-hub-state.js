@@ -168,6 +168,52 @@ export function renameMasteryHubTitle(masteryHubState, masteryHubId, title) {
 }
 
 /**
+ * Move one mastery hub and switch it to manual placement.
+ * Example:
+ *   moveMasteryHubPosition(state, "mastery_hub_1", 40, 70).masteryHubs[0].x === 40
+ */
+export function moveMasteryHubPosition(masteryHubState, masteryHubId, x, y) {
+  const safeState = normalizeMasteryHubState(masteryHubState);
+  const normalizedMasteryHubId = String(masteryHubId ?? "").trim();
+
+  if (!normalizedMasteryHubId) {
+    throw new Error('Círculo de maestria inválido: "". Esperado id de maestria existente.');
+  }
+
+  requireMasteryHub(safeState.masteryHubs, normalizedMasteryHubId);
+
+  return {
+    ...safeState,
+    masteryHubs: safeState.masteryHubs.map((masteryHub) =>
+      masteryHub.id === normalizedMasteryHubId
+        ? manualPositionedHub(masteryHub, x, y)
+        : masteryHub),
+  };
+}
+
+/**
+ * Freeze auto hub linked to a root before root drag moves independently.
+ * Example:
+ *   freezeMasteryHubForRoot(state, "node_1", 40, 70).masteryHubs[0].placementMode === "manual"
+ */
+export function freezeMasteryHubForRoot(masteryHubState, linkedRootNodeId, x, y) {
+  const safeState = normalizeMasteryHubState(masteryHubState);
+  const normalizedRootNodeId = String(linkedRootNodeId ?? "").trim();
+
+  if (!normalizedRootNodeId) {
+    return safeState;
+  }
+
+  return {
+    ...safeState,
+    masteryHubs: safeState.masteryHubs.map((masteryHub) =>
+      masteryHub.linkedRootNodeId === normalizedRootNodeId
+        ? manualPositionedHub(masteryHub, x, y)
+        : masteryHub),
+  };
+}
+
+/**
  * Remove hubs attached to deleted root node.
  * Example:
  *   removeMasteryHubForRoot(state, "node_1").masteryHubs.length === 0
@@ -198,6 +244,28 @@ function highestMasteryHubNumber(masteryHubs) {
 
 function isVisibleLinkedHub(masteryHub) {
   return Boolean(masteryHub.linkedRootNodeId);
+}
+
+function manualPositionedHub(masteryHub, x, y) {
+  return {
+    ...masteryHub,
+    placementMode: "manual",
+    x: numericValueOf(x),
+    y: numericValueOf(y),
+  };
+}
+
+function requireMasteryHub(masteryHubs, normalizedMasteryHubId) {
+  const targetHub = masteryHubs.find((masteryHub) => masteryHub.id === normalizedMasteryHubId);
+
+  if (!targetHub) {
+    throw new Error(
+      `Círculo de maestria inválido: "${normalizedMasteryHubId}". ` +
+      "Esperado id de maestria existente.",
+    );
+  }
+
+  return targetHub;
 }
 
 function normalizedLegacyHubEntries(rawLegacyHub) {
