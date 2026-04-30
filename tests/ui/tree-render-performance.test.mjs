@@ -14,7 +14,7 @@ const { TreeSnapshot } = await import("../../js/ui/tree-snapshot.js");
 
 const LARGE_TREE_ROOT_COUNT = 5;
 const LARGE_TREE_CHAIN_LENGTH = 100;
-const RENDER_SMOKE_BUDGET_MS = 3_000;
+const RENDER_SMOKE_BUDGET_MS = 500;
 
 test("large tree layout stays within the smoke performance budget", () => {
   const treeSnapshot = TreeSnapshot.from(largeTreeSnapshot());
