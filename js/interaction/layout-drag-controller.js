@@ -406,5 +406,11 @@ function formatPathNumber(value) {
 }
 
 function escapedSelectorValue(value) {
-  return window.CSS?.escape(String(value ?? "")) ?? String(value ?? "").replace(/"/g, '\\"');
+  const rawValue = String(value ?? "");
+
+  if (typeof window.CSS?.escape === "function") {
+    return window.CSS.escape(rawValue);
+  }
+
+  return rawValue.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
