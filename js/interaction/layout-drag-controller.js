@@ -9,6 +9,7 @@ import {
 
 const MIN_NODE_POSITION = 12;
 const TRANSIENT_DRAG_OPTIONS = Object.freeze({ persistState: false });
+const SVG_PATH_PRECISION = 3;
 
 export function createLayoutDragController(renderApp, currentScale = () => 1) {
   const dragState = {
@@ -116,7 +117,7 @@ function updateDrag(event, dragState, renderApp, currentScale) {
   }
 
   dragState.didMove = true;
-  scheduleDragRender(dragState, renderApp);
+  scheduleDragFrame(dragState);
 }
 
 function updateMasteryHubPosition(activeDrag, deltaX, deltaY) {
@@ -190,14 +191,14 @@ function hasMeaningfulDelta(deltaX, deltaY) {
   return Math.abs(deltaX) >= 0.01 || Math.abs(deltaY) >= 0.01;
 }
 
-function scheduleDragRender(dragState, renderApp) {
+function scheduleDragFrame(dragState) {
   if (dragState.renderFrameId !== null) {
     return;
   }
 
   dragState.renderFrameId = window.requestAnimationFrame(() => {
     dragState.renderFrameId = null;
-    renderApp();
+    renderActiveDragFrame(dragState.activeDrag);
   });
 }
 
@@ -208,4 +209,202 @@ function flushScheduledRender(dragState, renderApp) {
   }
 
   renderApp();
+}
+
+function renderActiveDragFrame(activeDrag) {
+  if (!activeDrag) {
+    return;
+  }
+
+  if (activeDrag.type === "node") {
+    refreshNodeConnectionPaths(activeDrag.nodeId);
+    return;
+  }
+
+  if (activeDrag.type === "connection") {
+    refreshConnectionPath(activeDrag.nodeId);
+    return;
+  }
+
+  refreshMasteryHubConnectionPath(activeDrag.masteryHubId);
+}
+
+function refreshNodeConnectionPaths(nodeId) {
+  refreshConnectionPath(nodeId);
+  refreshRootMasteryHubPath(nodeId);
+  refreshNodeMasterySourcePath(nodeId);
+
+  document.querySelectorAll(`[data-node-parent-id="${escapedSelectorValue(nodeId)}"]`)
+    .forEach((childElement) => {
+      refreshConnectionPath(childElement.dataset.nodeId);
+    });
+}
+
+function refreshRootMasteryHubPath(nodeId) {
+  const selectorValue = escapedSelectorValue(nodeId);
+  const masteryHubElement = document.querySelector(`[data-mastery-root-id="${selectorValue}"]`);
+  const rootElement = document.querySelector(`[data-node-id="${selectorValue}"]`);
+
+  if (!masteryHubElement || !rootElement) {
+    return;
+  }
+
+  setMasteryHubPath(
+    masteryHubElement.dataset.masteryHubId,
+    masteryHubPathFor(masteryHubElement, rootElement),
+  );
+}
+
+function refreshNodeMasterySourcePath(nodeId) {
+  const nodeElement = document.querySelector(`[data-node-id="${escapedSelectorValue(nodeId)}"]`);
+  const masteryHubId = nodeElement?.dataset.nodeSourceMasteryHubId;
+  const masteryHubElement = document.querySelector(
+    `[data-mastery-hub-id="${escapedSelectorValue(masteryHubId)}"]`,
+  );
+
+  if (!nodeElement || !masteryHubElement) {
+    return;
+  }
+
+  setMasterySourcePath(nodeId, masteryHubPathFor(masteryHubElement, nodeElement));
+}
+
+function refreshConnectionPath(childNodeId) {
+  const childElement = document.querySelector(`[data-node-id="${escapedSelectorValue(childNodeId)}"]`);
+
+  if (!childElement?.dataset.nodeParentId) {
+    return;
+  }
+
+  const parentElement = document.querySelector(
+    `[data-node-id="${escapedSelectorValue(childElement.dataset.nodeParentId)}"]`,
+  );
+
+  if (!parentElement) {
+    return;
+  }
+
+  setConnectionPath(childNodeId, connectionPathFor(parentElement, childElement, childNodeId));
+}
+
+function refreshMasteryHubConnectionPath(masteryHubId) {
+  const masteryHubElement = document.querySelector(
+    `[data-mastery-hub-id="${escapedSelectorValue(masteryHubId)}"]`,
+  );
+
+  if (!masteryHubElement) {
+    return;
+  }
+
+  const rootElement = document.querySelector(
+    `[data-node-id="${escapedSelectorValue(masteryHubElement.dataset.masteryRootId)}"]`,
+  );
+
+  if (rootElement) {
+    setMasteryHubPath(masteryHubId, masteryHubPathFor(masteryHubElement, rootElement));
+  }
+
+  refreshMasteryHubSourcePaths(masteryHubId, masteryHubElement);
+}
+
+function refreshMasteryHubSourcePaths(masteryHubId, masteryHubElement) {
+  document.querySelectorAll(`[data-node-source-mastery-hub-id="${escapedSelectorValue(masteryHubId)}"]`)
+    .forEach((sourceNodeElement) => {
+      setMasterySourcePath(
+        sourceNodeElement.dataset.nodeId,
+        masteryHubPathFor(masteryHubElement, sourceNodeElement),
+      );
+    });
+}
+
+function setConnectionPath(childNodeId, pathValue) {
+  const selectorValue = escapedSelectorValue(childNodeId);
+
+  document.querySelector(`[data-connection-node-id="${selectorValue}"]`)
+    ?.setAttribute("d", pathValue);
+  document.querySelector(`[data-connection-shadow-node-id="${selectorValue}"]`)
+    ?.setAttribute("d", pathValue);
+}
+
+function setMasteryHubPath(masteryHubId, pathValue) {
+  document.querySelector(`[data-mastery-hub-link="${escapedSelectorValue(masteryHubId)}"]`)
+    ?.setAttribute("d", pathValue);
+  document.querySelector(`[data-mastery-hub-link-shadow="${escapedSelectorValue(masteryHubId)}"]`)
+    ?.setAttribute("d", pathValue);
+}
+
+function setMasterySourcePath(nodeId, pathValue) {
+  document.querySelector(`[data-mastery-source-link="${escapedSelectorValue(nodeId)}"]`)
+    ?.setAttribute("d", pathValue);
+  document.querySelector(`[data-mastery-source-link-shadow="${escapedSelectorValue(nodeId)}"]`)
+    ?.setAttribute("d", pathValue);
+}
+
+function connectionPathFor(parentElement, childElement, childNodeId) {
+  const parentCenter = elementCenterPoint(parentElement);
+  const childCenter = elementCenterPoint(childElement);
+  const startPoint = linkPointToward(parentCenter, childCenter, elementSize(parentElement));
+  const endPoint = linkPointToward(childCenter, parentCenter, elementSize(childElement));
+  const controlPoint = connectionControlPoint(startPoint, endPoint, childNodeId);
+
+  return quadraticPath(startPoint, controlPoint, endPoint);
+}
+
+function masteryHubPathFor(masteryHubElement, rootElement) {
+  const startPoint = elementCenterPoint(masteryHubElement);
+  const endPoint = elementCenterPoint(rootElement);
+  const controlPoint = {
+    x: (startPoint.x + endPoint.x) / 2,
+    y: Math.min(startPoint.y, endPoint.y) - 36,
+  };
+
+  return quadraticPath(startPoint, controlPoint, endPoint);
+}
+
+function connectionControlPoint(startPoint, endPoint, childNodeId) {
+  const nodeSnapshot = state.nodesById[childNodeId] ?? {};
+
+  return {
+    x: (startPoint.x + endPoint.x) / 2 + Number(nodeSnapshot.connectionControlOffsetX ?? 0),
+    y: (startPoint.y + endPoint.y) / 2 + Number(nodeSnapshot.connectionControlOffsetY ?? 0),
+  };
+}
+
+function linkPointToward(sourcePoint, targetPoint, sourceSize) {
+  const angleInRadians = Math.atan2(targetPoint.y - sourcePoint.y, targetPoint.x - sourcePoint.x);
+
+  return {
+    x: sourcePoint.x + Math.cos(angleInRadians) * sourceSize / 2,
+    y: sourcePoint.y + Math.sin(angleInRadians) * sourceSize / 2,
+  };
+}
+
+function elementCenterPoint(element) {
+  const left = numericStylePosition(element, "left");
+  const top = numericStylePosition(element, "top");
+  const size = elementSize(element);
+
+  return { x: left + size / 2, y: top + size / 2 };
+}
+
+function elementSize(element) {
+  const styledSize = Number.parseFloat(element.style.width || element.style.height || "0");
+
+  return styledSize || element.offsetWidth || 0;
+}
+
+function quadraticPath(startPoint, controlPoint, endPoint) {
+  return `M ${formattedPoint(startPoint)} Q ${formattedPoint(controlPoint)}, ${formattedPoint(endPoint)}`;
+}
+
+function formattedPoint(point) {
+  return `${formatPathNumber(point.x)} ${formatPathNumber(point.y)}`;
+}
+
+function formatPathNumber(value) {
+  return Number(value).toFixed(SVG_PATH_PRECISION).replace(/\.?0+$/, "");
+}
+
+function escapedSelectorValue(value) {
+  return window.CSS?.escape(String(value ?? "")) ?? String(value ?? "").replace(/"/g, '\\"');
 }

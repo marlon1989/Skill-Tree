@@ -385,6 +385,7 @@ class ConnectionCurve {
   toMarkup() {
     return `
       <path
+        data-connection-shadow-node-id="${this.childNodeId}"
         d="${this.path()}"
         fill="none"
         stroke="${this.branchTheme.connectionStroke()}"
@@ -394,6 +395,7 @@ class ConnectionCurve {
         opacity="0.18"
       />
       <path
+        data-connection-node-id="${this.childNodeId}"
         d="${this.path()}"
         fill="none"
         stroke="${this.branchTheme.connectionStroke()}"
@@ -431,6 +433,7 @@ class MasteryHubLinkCurve {
   toMarkup() {
     return `
       <path
+        ${this.dataAttribute}-shadow="${this.masteryHubId}"
         d="${this.path()}"
         fill="none"
         stroke="${this.branchTheme.connectionStroke()}"
