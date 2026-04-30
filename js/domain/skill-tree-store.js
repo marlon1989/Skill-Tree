@@ -41,13 +41,19 @@ export class SkillTreeStore {
     });
   }
 
-  addNode(parentId, title) {
+  addNode(parentId, title, nodeKind = "subtopic", sourceMasteryHubId = "") {
     const parentReference = ParentId.from(parentId);
 
     this.requireParent(parentReference);
 
     const nodeId = this.context.nodeSequence.createNodeId();
-    const newNode = SkillNode.create(nodeId, NodeTitle.from(title), parentReference);
+    const newNode = SkillNode.create(
+      nodeId,
+      NodeTitle.from(title),
+      parentReference,
+      nodeKind,
+      sourceMasteryHubId,
+    );
 
     this.context.nodes.add(newNode);
     this.context.hierarchy.append(parentReference, nodeId);
@@ -147,14 +153,12 @@ export class SkillTreeStore {
   resetRootProgress(nodeId) {
     const rootNode = this.context.nodes.require(NodeId.from(nodeId));
 
-    if (!rootNode.isRoot()) {
+    if (!rootNode.isOrigin()) {
       throw new Error("Só nós de origem podem ter o progresso resetado por essa ação.");
     }
 
     this.resetProgressOf(nodeId);
-    this.context.hierarchy
-      .traverseFrom(ParentId.from(nodeId))
-      .forEach((descendantNodeId) => this.resetProgressOf(descendantNodeId.toString()));
+    this.resetSubtopicsOfOrigin(nodeId);
     this.recalculateStatuses();
 
     return rootNode.toSnapshot();
@@ -239,24 +243,23 @@ export class SkillTreeStore {
   }
 
   syncAllRootProgresses() {
-    this.context.hierarchy.childrenOf(ParentId.root()).forEach((rootNodeId) => {
-      const rootNode = this.context.nodes.require(rootNodeId);
-      const childIds = this.context.hierarchy.childrenOf(ParentId.from(rootNode.identity().toString()));
-
-      if (rootNode.isMastered() || childIds.length === 0) {
+    this.context.nodes.each((treeNode) => {
+      if (!treeNode.isOrigin() || treeNode.isMastered()) {
         return;
       }
 
-      rootNode.syncProgress(this.progressFromMasteredDescendantsOf(rootNode.identity()));
+      treeNode.syncProgress(this.progressFromMasteredDescendantsOf(treeNode.identity()));
     });
   }
 
   progressFromMasteredDescendantsOf(nodeId) {
-    const descendantNodeIds = this.context.hierarchy.traverseFrom(ParentId.from(nodeId.toString()));
-    const progressPercent = masteredDescendantProgressPercent(
-      descendantNodeIds,
-      (descendantNodeId) => this.context.nodes.require(descendantNodeId).isMastered(),
-    );
+    const originNodeId = NodeId.from(nodeId.toString());
+    const progressPercent = masteredDescendantProgressPercent({
+      childIdsOf: (parentNodeId) => this.context.hierarchy.childrenOf(ParentId.from(parentNodeId)),
+      isMasteredNodeId: (descendantNodeId) => this.context.nodes.require(descendantNodeId).isMastered(),
+      isOriginNodeId: (descendantNodeId) => this.context.nodes.require(descendantNodeId).isOrigin(),
+      rootNodeId: originNodeId.toString(),
+    });
 
     return ProgressValue.from(progressPercent);
   }
@@ -297,5 +300,22 @@ export class SkillTreeStore {
 
   resetProgressOf(nodeId) {
     this.context.nodes.require(NodeId.from(nodeId)).resetProgress();
+  }
+
+  resetSubtopicsOfOrigin(originNodeId) {
+    const visitSubtopicChildren = (parentNodeId) => {
+      this.context.hierarchy.childrenOf(ParentId.from(parentNodeId)).forEach((childNodeId) => {
+        const childNode = this.context.nodes.require(childNodeId);
+
+        if (childNode.isOrigin()) {
+          return;
+        }
+
+        this.resetProgressOf(childNodeId.toString());
+        visitSubtopicChildren(childNodeId.toString());
+      });
+    };
+
+    visitSubtopicChildren(originNodeId);
   }
 }

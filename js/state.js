@@ -1,6 +1,8 @@
 import { NODE_STATUS, ROOT_PARENT_KEY } from "./domain/constants.js";
 import {
   createEmptyMasteryHubState,
+  freezeMasteryHubForRoot,
+  moveMasteryHubPosition,
   normalizeMasteryHubState,
   renameMasteryHubTitle,
   removeMasteryHubForRoot,
@@ -30,8 +32,8 @@ syncMasteryHubsToTree({ persistState: false });
 shouldPersistState && persistAppState();
 shouldRemoveLegacyCustomization && clearLegacyVisualCustomization();
 
-export function addNode(parentId, title) {
-  return syncStateAfter(() => store.addNode(parentId, title));
+export function addNode(parentId, title, nodeKind = "subtopic", sourceMasteryHubId = "") {
+  return syncStateAfter(() => store.addNode(parentId, title, nodeKind, sourceMasteryHubId));
 }
 
 export function deleteNode(nodeId) {
@@ -71,6 +73,20 @@ export function placeMasteryHub(rootNodeId, x, y) {
 
 export function moveConnectionControl(nodeId, offsetX, offsetY) {
   return syncStateAfter(() => store.moveConnectionControl(nodeId, offsetX, offsetY));
+}
+
+export function freezeMasteryHubLayout(rootNodeId, x, y) {
+  applyMasteryHubState(freezeMasteryHubForRoot(masteryHubStateSnapshot(), rootNodeId, x, y));
+  persistAppState();
+
+  return masteryHubStateSnapshot();
+}
+
+export function moveMasteryHub(masteryHubId, x, y) {
+  applyMasteryHubState(moveMasteryHubPosition(masteryHubStateSnapshot(), masteryHubId, x, y));
+  persistAppState();
+
+  return masteryHubStateSnapshot();
 }
 
 export function moveNodeLayout(nodeId, offsetX, offsetY) {
@@ -201,8 +217,10 @@ function normalizeAppState(rawState) {
         id: String(node?.id ?? nodeId),
         layoutOffsetX: numericValueOf(node?.layoutOffsetX),
         layoutOffsetY: numericValueOf(node?.layoutOffsetY),
+        nodeKind: normalizedNodeKindOf(node?.nodeKind, node?.parentId),
         parentId: node?.parentId === null ? null : String(node?.parentId ?? ""),
         progress: clampedProgressValueOf(node?.progress),
+        sourceMasteryHubId: String(node?.sourceMasteryHubId ?? "").trim(),
         status: String(node?.status ?? ""),
         title: String(node?.title ?? "").trim(),
       },
@@ -310,14 +328,24 @@ function appStateSnapshot() {
           id: String(node.id),
           layoutOffsetX: numericValueOf(node.layoutOffsetX),
           layoutOffsetY: numericValueOf(node.layoutOffsetY),
+          nodeKind: normalizedNodeKindOf(node.nodeKind, node.parentId),
           parentId: node.parentId === null ? null : String(node.parentId),
           progress: clampedProgressValueOf(node.progress),
+          sourceMasteryHubId: String(node.sourceMasteryHubId ?? "").trim(),
           status: String(node.status),
           title: String(node.title),
         },
       ]),
     ),
   };
+}
+
+function normalizedNodeKindOf(rawNodeKind, rawParentId) {
+  if (rawParentId === null || rawNodeKind === "origin") {
+    return "origin";
+  }
+
+  return "subtopic";
 }
 
 function applyMasteryHubState(masteryHubState) {

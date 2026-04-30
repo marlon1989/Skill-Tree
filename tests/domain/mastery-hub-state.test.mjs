@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   createEmptyMasteryHubState,
+  freezeMasteryHubForRoot,
   hasMasteryHubForRoot,
+  moveMasteryHubPosition,
   normalizeMasteryHubState,
   renameMasteryHubTitle,
   removeMasteryHubForRoot,
@@ -151,6 +153,38 @@ test("renameMasteryHubTitle updates only chosen hub title", () => {
     masteryHubs: [
       { id: "mastery_hub_1", linkedRootNodeId: "node_1", placementMode: "auto", title: "", x: 0, y: 0 },
       { id: "mastery_hub_2", linkedRootNodeId: "node_5", placementMode: "auto", title: "Geometria Mestre", x: 0, y: 0 },
+    ],
+    nextMasteryHubId: 3,
+  });
+});
+
+test("moveMasteryHubPosition moves chosen hub and switches it to manual", () => {
+  assert.deepEqual(moveMasteryHubPosition({
+    masteryHubs: [
+      { id: "mastery_hub_1", linkedRootNodeId: "node_1", placementMode: "auto", title: "", x: 0, y: 0 },
+      { id: "mastery_hub_2", linkedRootNodeId: "node_5", placementMode: "auto", title: "", x: 0, y: 0 },
+    ],
+    nextMasteryHubId: 3,
+  }, "mastery_hub_2", 44, 88), {
+    masteryHubs: [
+      { id: "mastery_hub_1", linkedRootNodeId: "node_1", placementMode: "auto", title: "", x: 0, y: 0 },
+      { id: "mastery_hub_2", linkedRootNodeId: "node_5", placementMode: "manual", title: "", x: 44, y: 88 },
+    ],
+    nextMasteryHubId: 3,
+  });
+});
+
+test("freezeMasteryHubForRoot freezes only hub linked to dragged root", () => {
+  assert.deepEqual(freezeMasteryHubForRoot({
+    masteryHubs: [
+      { id: "mastery_hub_1", linkedRootNodeId: "node_1", placementMode: "auto", title: "", x: 0, y: 0 },
+      { id: "mastery_hub_2", linkedRootNodeId: "node_5", placementMode: "auto", title: "", x: 0, y: 0 },
+    ],
+    nextMasteryHubId: 3,
+  }, "node_1", 120, 160), {
+    masteryHubs: [
+      { id: "mastery_hub_1", linkedRootNodeId: "node_1", placementMode: "manual", title: "", x: 120, y: 160 },
+      { id: "mastery_hub_2", linkedRootNodeId: "node_5", placementMode: "auto", title: "", x: 0, y: 0 },
     ],
     nextMasteryHubId: 3,
   });

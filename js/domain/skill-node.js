@@ -5,22 +5,25 @@ import { ParentId } from "./parent-id.js";
 import { ProgressValue } from "./progress-value.js";
 
 export class SkillNode {
-  constructor(identity, parentReference) {
+  constructor(identity, parentReference, nodeKind = "subtopic") {
     this.identityValue = identity;
+    this.nodeKindValue = normalizedNodeKind(nodeKind, parentReference);
     this.parentReferenceValue = parentReference;
     this.state = {
       connectionControlOffset: { x: 0, y: 0 },
       layoutOffset: { x: 0, y: 0 },
       progress: ProgressValue.zero(),
+      sourceMasteryHubId: "",
       status: NodeStatus.inactive(),
       title: null,
     };
   }
 
-  static create(identifier, title, parentReference) {
-    const skillNode = new SkillNode(identifier, parentReference);
+  static create(identifier, title, parentReference, nodeKind = "subtopic", sourceMasteryHubId = "") {
+    const skillNode = new SkillNode(identifier, parentReference, nodeKind);
 
     skillNode.rename(title);
+    skillNode.setSourceMasteryHubId(sourceMasteryHubId);
 
     return skillNode;
   }
@@ -29,12 +32,14 @@ export class SkillNode {
     const skillNode = new SkillNode(
       NodeId.from(snapshot?.id ?? fallbackNodeId),
       ParentId.from(snapshot?.parentId ?? null),
+      snapshot?.nodeKind,
     );
 
     skillNode.rename(NodeTitle.from(snapshot?.title));
     skillNode.syncProgress(ProgressValue.from(snapshot?.progress ?? 0));
     skillNode.state.status = NodeStatus.from(snapshot?.status);
     skillNode.setLayoutOffset(snapshot?.layoutOffsetX, snapshot?.layoutOffsetY);
+    skillNode.setSourceMasteryHubId(snapshot?.sourceMasteryHubId);
     skillNode.setConnectionControlOffset(
       snapshot?.connectionControlOffsetX,
       snapshot?.connectionControlOffsetY,
@@ -53,6 +58,10 @@ export class SkillNode {
 
   isRoot() {
     return this.parentReferenceValue.isRoot();
+  }
+
+  isOrigin() {
+    return this.nodeKindValue === "origin";
   }
 
   markAsMastered() {
@@ -128,6 +137,10 @@ export class SkillNode {
     };
   }
 
+  setSourceMasteryHubId(sourceMasteryHubId) {
+    this.state.sourceMasteryHubId = String(sourceMasteryHubId ?? "").trim();
+  }
+
   syncProgress(progressValue) {
     this.state.progress = progressValue;
   }
@@ -139,8 +152,10 @@ export class SkillNode {
       id: this.identityValue.toString(),
       layoutOffsetX: this.state.layoutOffset.x,
       layoutOffsetY: this.state.layoutOffset.y,
+      nodeKind: this.nodeKindValue,
       parentId: this.parentReferenceValue.toNullableString(),
       progress: this.state.progress.toNumber(),
+      sourceMasteryHubId: this.state.sourceMasteryHubId,
       status: this.state.status.toString(),
       title: this.state.title.toString(),
     };
@@ -155,10 +170,18 @@ export class SkillNode {
   }
 
   isUnlockedRoot() {
-    return this.isRoot();
+    return this.isOrigin();
   }
 
   parentAllowsProgress(parentNode) {
-    return parentNode !== null && (parentNode.isMastered() || parentNode.isRoot());
+    return parentNode !== null && (parentNode.isMastered() || parentNode.isOrigin());
   }
+}
+
+function normalizedNodeKind(rawNodeKind, parentReference) {
+  if (parentReference.isRoot() || rawNodeKind === "origin") {
+    return "origin";
+  }
+
+  return "subtopic";
 }

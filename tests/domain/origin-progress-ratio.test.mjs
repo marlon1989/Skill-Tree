@@ -25,6 +25,36 @@ ratioCases.forEach(({ expectedPercent, masteredIds, nodeIds }) => {
   });
 });
 
+test("masteredDescendantProgressPercent counts nested origin as complete only when its subtópicos complete", () => {
+  assert.equal(masteredDescendantProgressPercent({
+    childIdsOf: (parentNodeId) => ({
+      node_1: ["node_2", "node_3"],
+      node_2: [],
+      node_3: ["node_4", "node_5"],
+      node_4: [],
+      node_5: [],
+    })[parentNodeId] ?? [],
+    isMasteredNodeId: (nodeId) => ["node_2", "node_4", "node_5"].includes(nodeId),
+    isOriginNodeId: (nodeId) => nodeId === "node_3",
+    rootNodeId: "node_1",
+  }), 100);
+});
+
+test("masteredDescendantProgressPercent leaves nested origin empty while any subtópico remains open", () => {
+  assert.equal(masteredDescendantProgressPercent({
+    childIdsOf: (parentNodeId) => ({
+      node_1: ["node_2", "node_3"],
+      node_2: [],
+      node_3: ["node_4", "node_5"],
+      node_4: [],
+      node_5: [],
+    })[parentNodeId] ?? [],
+    isMasteredNodeId: (nodeId) => ["node_2", "node_4"].includes(nodeId),
+    isOriginNodeId: (nodeId) => nodeId === "node_3",
+    rootNodeId: "node_1",
+  }), 50);
+});
+
 function expectedPercentOf(masteredCount, descendantCount) {
   if (descendantCount === 0) {
     return 0;

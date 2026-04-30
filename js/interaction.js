@@ -6,6 +6,7 @@ import { createHoldController } from "./interaction/hold-controller.js";
 import { createLayoutDragController } from "./interaction/layout-drag-controller.js";
 import { victorySfx, playVictorySfx } from "./interaction/audio-victory.js";
 import { canAdvanceNode, canOpenBossModal } from "./interaction/node-rules.js";
+import { hideThemeAlert, showThemeAlert } from "./ui/theme-alert.js";
 
 export { playVictorySfx, victorySfx };
 
@@ -33,6 +34,18 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
   elements.nodeLayer.addEventListener("pointerdown", (event) => {
     const nodeDragHandle = event.target.closest("[data-node-drag-handle]");
     const connectionHandle = event.target.closest("[data-connection-handle]");
+    const masteryHubElement = event.target.closest("[data-mastery-hub-id]");
+
+    if (masteryHubElement && event.button === 0) {
+      const masteryHubId = masteryHubElement.dataset.masteryHubId;
+
+      if (!masteryHubId) {
+        return;
+      }
+
+      layoutDragController.beginMasteryHubDrag(event, masteryHubId, masteryHubElement);
+      return;
+    }
 
     if (nodeDragHandle) {
       const nodeId = nodeDragHandle.dataset.dragNodeId;
@@ -149,10 +162,8 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
     const nodeElement = event.target.closest("[data-node-id]");
     const masteryHubId = masteryHubElement?.dataset.masteryHubId ?? "";
     const nodeId = nodeElement?.dataset.nodeId ?? "";
-    const isRootNode = nodeId !== "" && state.nodesById[nodeId]?.parentId === null;
-    const clickPoint = nodeElement || masteryHubElement
-      ? null
-      : canvasCameraController.stagePointFor(event.clientX, event.clientY);
+    const isRootNode = nodeId !== "" && state.nodesById[nodeId]?.nodeKind === "origin";
+    const clickPoint = canvasCameraController.stagePointFor(event.clientX, event.clientY);
 
     showContextMenu(event.clientX, event.clientY, nodeId, masteryHubId, isRootNode, clickPoint);
   });
@@ -206,8 +217,13 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       return;
     }
 
+    if (elements.bossOptions.children.length === 0) {
+      handleBossFight(nodeId, "");
+      return;
+    }
+
     if (selectedAnswer === undefined || selectedAnswer === "") {
-      window.alert("Selecione uma resposta antes de confirmar.");
+      showThemeAlert("Selecione uma resposta antes de confirmar.");
       return;
     }
 
@@ -226,6 +242,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       hideBossModal();
       hideContextMenu();
       hideHoverModal();
+      hideThemeAlert();
     }
   });
 

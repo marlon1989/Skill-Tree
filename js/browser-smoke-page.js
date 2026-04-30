@@ -3,6 +3,8 @@ const LEGACY_VISUAL_CUSTOMIZATION_STORAGE_KEY = "skill-tree.visual-customization
 const GEOMETRY_DESCENDANT_TITLES = Object.freeze(["Ângulos", "Congruência", "Semelhança", "Área"]);
 const NEW_CANVAS_ROOT_TITLE = "Geometria";
 const NEW_CHILD_ORIGIN_TITLE = "Álgebra";
+const NEW_MASTERY_ROOT_TITLE = "Lógica";
+const NESTED_ORIGIN_CHILD_TITLE = "Variáveis";
 const NEW_ROOT_FIRST_SUBTOPIC_TITLE = "Triângulos";
 const NEW_ROOT_MASTERY_TITLE = "Trilha de Geometria";
 const FRAME_READY_TIMEOUT_MS = 5_000;
@@ -65,10 +67,12 @@ async function runBrowserSmoke() {
   smokeResults.push(await newRootAutoMasteryHubResult());
   smokeResults.push(await newRootDescendantChainResult());
   smokeResults.push(await renameMasteryHubResult());
+  smokeResults.push(await masteryHubRootCreationResult());
   smokeResults.push(await rootHoldResult());
   smokeResults.push(await childFillResult());
   smokeResults.push(await bossPromotionResult());
   smokeResults.push(await secondOriginProgressionResult());
+  smokeResults.push(await nestedOriginProgressionAndResetResult());
 
   writeSmokeResult({
     ok: smokeResults.every((result) => result.passed),
@@ -166,12 +170,12 @@ async function rootHoldResult() {
 }
 
 async function subtopicContextOriginResult() {
-  queuePromptResponse(NEW_CHILD_ORIGIN_TITLE);
   await openNodeContextMenu("Soma");
 
   const createRootButton = requireVisibleContextAction("create-root");
 
   createRootButton.click();
+  await submitThemeText(NEW_CHILD_ORIGIN_TITLE);
   await waitForFrameCondition(
     () => nodeByTitle(NEW_CHILD_ORIGIN_TITLE),
     FRAME_READY_TIMEOUT_MS,
@@ -191,10 +195,10 @@ async function subtopicContextOriginResult() {
 }
 
 async function emptyCanvasRootResult() {
-  queuePromptResponse(NEW_CANVAS_ROOT_TITLE);
   await openCanvasContextMenu({ clientX: 48, clientY: 48 });
 
   requireVisibleContextAction("create-root").click();
+  await submitThemeText(NEW_CANVAS_ROOT_TITLE);
   await waitForFrameCondition(
     () => nodeByTitle(NEW_CANVAS_ROOT_TITLE),
     FRAME_READY_TIMEOUT_MS,
@@ -216,10 +220,10 @@ async function emptyCanvasRootResult() {
 }
 
 async function newRootAutoMasteryHubResult() {
-  queuePromptResponse(NEW_ROOT_FIRST_SUBTOPIC_TITLE);
   await openNodeContextMenu(NEW_CANVAS_ROOT_TITLE);
 
   requireVisibleContextAction("add-child").click();
+  await submitThemeText(NEW_ROOT_FIRST_SUBTOPIC_TITLE);
   await waitForFrameCondition(
     () => nodeByTitle(NEW_ROOT_FIRST_SUBTOPIC_TITLE),
     FRAME_READY_TIMEOUT_MS,
@@ -253,9 +257,9 @@ async function newRootDescendantChainResult() {
   let parentTitle = NEW_ROOT_FIRST_SUBTOPIC_TITLE;
 
   for (const descendantTitle of GEOMETRY_DESCENDANT_TITLES) {
-    queuePromptResponse(descendantTitle);
     await openNodeContextMenu(parentTitle);
     requireVisibleContextAction("add-child").click();
+    await submitThemeText(descendantTitle);
     await waitForFrameCondition(
       () => nodeByTitle(descendantTitle),
       FRAME_READY_TIMEOUT_MS,
@@ -277,10 +281,10 @@ async function newRootDescendantChainResult() {
 }
 
 async function renameMasteryHubResult() {
-  queuePromptResponse(NEW_ROOT_MASTERY_TITLE);
   await openMasteryHubContextMenu(NEW_CANVAS_ROOT_TITLE);
 
   requireVisibleContextAction("rename-mastery-hub").click();
+  await submitThemeText(NEW_ROOT_MASTERY_TITLE);
   await waitForFrameCondition(
     () => masteryHubElementForRoot(NEW_CANVAS_ROOT_TITLE)?.dataset.masteryTitle === NEW_ROOT_MASTERY_TITLE,
     FRAME_READY_TIMEOUT_MS,
@@ -294,6 +298,36 @@ async function renameMasteryHubResult() {
     },
     name: "maestria-pode-ser-renomeada",
     passed: masteryHubElementForRoot(NEW_CANVAS_ROOT_TITLE)?.dataset.masteryTitle === NEW_ROOT_MASTERY_TITLE,
+  };
+}
+
+async function masteryHubRootCreationResult() {
+  await openMasteryHubContextMenu(NEW_CANVAS_ROOT_TITLE);
+
+  requireVisibleContextAction("create-root").click();
+  await submitThemeText(NEW_MASTERY_ROOT_TITLE);
+  await waitForFrameCondition(
+    () => nodeByTitle(NEW_MASTERY_ROOT_TITLE),
+    FRAME_READY_TIMEOUT_MS,
+    `Novo root '${NEW_MASTERY_ROOT_TITLE}' não renderizou em até 5000ms.`,
+  );
+
+  return {
+    detail: {
+      createdRootParentId: parentIdOf(NEW_MASTERY_ROOT_TITLE),
+      createdRootSourceMasteryHubId: sourceMasteryHubIdOf(NEW_MASTERY_ROOT_TITLE),
+      createdRootTitle: NEW_MASTERY_ROOT_TITLE,
+      sourceLinkCount: masterySourceLinkElements().length,
+      rootCountAfterMasteryCreate: rootNodeCount(),
+      sourceMasteryRootId: masteryHubElementForRoot(NEW_CANVAS_ROOT_TITLE)?.dataset.masteryRootId ?? "",
+    },
+    name: "maestria-cria-root-independente",
+    passed:
+      parentIdOf(NEW_MASTERY_ROOT_TITLE) === null &&
+      sourceMasteryHubIdOf(NEW_MASTERY_ROOT_TITLE) === masteryHubElementForRoot(NEW_CANVAS_ROOT_TITLE)?.dataset.masteryHubId &&
+      masterySourceLinkForNode(NEW_MASTERY_ROOT_TITLE) !== null &&
+      nodeIdOf(NEW_MASTERY_ROOT_TITLE) !== nodeIdOf(NEW_CANVAS_ROOT_TITLE) &&
+      rootNodeCount() >= 3,
   };
 }
 
@@ -317,7 +351,7 @@ async function bossPromotionResult() {
     2_500,
     "Boss modal não abriu para nó 'Soma' em até 2500ms.",
   );
-  clickBossOption("4");
+  confirmBossAdvice();
   requireElementFromFrame("#boss-modal-confirm").click();
   await waitForFrameCondition(
     () => progressOf("Matemática Básica") > 0,
@@ -363,6 +397,63 @@ async function secondOriginProgressionResult() {
   };
 }
 
+async function nestedOriginProgressionAndResetResult() {
+  const originProgressBeforeHold = progressOf(NEW_CHILD_ORIGIN_TITLE);
+
+  await holdNodeFor(NEW_CHILD_ORIGIN_TITLE, ROOT_HOLD_DURATION_MS);
+  const originProgressAfterHold = progressOf(NEW_CHILD_ORIGIN_TITLE);
+  await createSubtopicUnder(NEW_CHILD_ORIGIN_TITLE, NESTED_ORIGIN_CHILD_TITLE);
+  await holdNodeUntilFilled(NESTED_ORIGIN_CHILD_TITLE, NODE_FILL_TIMEOUT_MS);
+  await completeBossFight(NESTED_ORIGIN_CHILD_TITLE, "4");
+  await waitForFrameCondition(
+    () => progressOf(NEW_CHILD_ORIGIN_TITLE) > originProgressBeforeHold,
+    ROOT_SYNC_TIMEOUT_MS,
+    `Origem aninhada '${NEW_CHILD_ORIGIN_TITLE}' não progrediu pelos subtópicos.`,
+  );
+
+  const originProgressAfterChild = progressOf(NEW_CHILD_ORIGIN_TITLE);
+
+  await resetOriginProgressViaMenu(NEW_CHILD_ORIGIN_TITLE);
+
+  return {
+    detail: {
+      childProgressAfterReset: progressOf(NESTED_ORIGIN_CHILD_TITLE),
+      originProgressAfterChild,
+      originProgressAfterHold,
+      originProgressAfterReset: progressOf(NEW_CHILD_ORIGIN_TITLE),
+    },
+    name: "origem-aninhada-progride-por-filhos-e-reseta",
+    passed:
+      originProgressBeforeHold === 0 &&
+      originProgressAfterHold === originProgressBeforeHold &&
+      originProgressAfterChild > 0 &&
+      progressOf(NEW_CHILD_ORIGIN_TITLE) === 0 &&
+      progressOf(NESTED_ORIGIN_CHILD_TITLE) === 0,
+  };
+}
+
+async function createSubtopicUnder(parentTitle, childTitle) {
+  await openNodeContextMenu(parentTitle);
+  requireVisibleContextAction("add-child").click();
+  await submitThemeText(childTitle);
+  await waitForFrameCondition(
+    () => nodeByTitle(childTitle),
+    FRAME_READY_TIMEOUT_MS,
+    `Novo subtópico '${childTitle}' não renderizou em até 5000ms.`,
+  );
+}
+
+async function resetOriginProgressViaMenu(originTitle) {
+  await openNodeContextMenu(originTitle);
+  requireVisibleContextAction("reset-root-progress").click();
+  await submitThemeConfirm();
+  await waitForFrameCondition(
+    () => progressOf(originTitle) === 0,
+    ROOT_SYNC_TIMEOUT_MS,
+    `Origem '${originTitle}' não resetou em até 5000ms.`,
+  );
+}
+
 async function completeBossFight(nodeTitle, correctOptionLabel) {
   clickNode(nodeTitle);
   await waitForFrameCondition(
@@ -370,7 +461,7 @@ async function completeBossFight(nodeTitle, correctOptionLabel) {
     2_500,
     `Boss modal não abriu para nó '${nodeTitle}' em até 2500ms.`,
   );
-  clickBossOption(correctOptionLabel);
+  confirmBossAdvice(correctOptionLabel);
   requireElementFromFrame("#boss-modal-confirm").click();
   await waitForFrameCondition(
     () => statusOf(nodeTitle) === "dominado",
@@ -421,8 +512,38 @@ async function holdNodeUntilFilled(nodeTitle, timeoutMs) {
   );
 }
 
+function confirmBossAdvice(optionLabel = "") {
+  if (bossOptionButtons().length === 0) {
+    return;
+  }
+
+  clickBossOption(optionLabel);
+}
+
+async function submitThemeText(textValue) {
+  await waitForFrameCondition(
+    () => !themeAlertElement().classList.contains("hidden") &&
+      !themeAlertInputElement().classList.contains("hidden"),
+    1_500,
+    "Painel de texto temático não abriu em até 1500ms.",
+  );
+
+  themeAlertInputElement().value = textValue;
+  themeAlertPrimaryButton().click();
+}
+
+async function submitThemeConfirm() {
+  await waitForFrameCondition(
+    () => !themeAlertElement().classList.contains("hidden"),
+    1_500,
+    "Painel de confirmação temático não abriu em até 1500ms.",
+  );
+
+  themeAlertPrimaryButton().click();
+}
+
 function clickBossOption(optionLabel) {
-  const bossOptionButton = [...frameDocument().querySelectorAll("#boss-modal-options [data-choice]")]
+  const bossOptionButton = bossOptionButtons()
     .find((optionElement) => optionElement.textContent.trim() === optionLabel);
 
   if (!bossOptionButton) {
@@ -430,6 +551,10 @@ function clickBossOption(optionLabel) {
   }
 
   bossOptionButton.click();
+}
+
+function bossOptionButtons() {
+  return [...frameDocument().querySelectorAll("#boss-modal-options [data-choice]")];
 }
 
 function clickNode(nodeTitle) {
@@ -444,12 +569,32 @@ function contextMenuElement() {
   return requireElementFromFrame("#context-menu");
 }
 
+function themeAlertElement() {
+  return requireElementFromFrame("#theme-alert");
+}
+
+function themeAlertInputElement() {
+  return requireElementFromFrame("#theme-alert-input");
+}
+
+function themeAlertPrimaryButton() {
+  return requireElementFromFrame("#theme-alert-close");
+}
+
 function masteryHubElement() {
   return frameDocument().querySelector("[data-mastery-hub='true']");
 }
 
 function masteryHubElements() {
   return [...frameDocument().querySelectorAll("[data-mastery-hub='true']")];
+}
+
+function masterySourceLinkElements() {
+  return [...frameDocument().querySelectorAll("[data-mastery-source-link]")];
+}
+
+function masterySourceLinkForNode(nodeTitle) {
+  return frameDocument().querySelector(`[data-mastery-source-link="${nodeIdOf(nodeTitle)}"]`);
 }
 
 function masteryHubElementForRoot(rootTitle) {
@@ -548,10 +693,6 @@ function installDialogStubs() {
   };
 }
 
-function queuePromptResponse(promptResponse) {
-  requireFrameWindow().__codexBrowserSmokePromptQueue.push(promptResponse);
-}
-
 function bossModal() {
   return requireElementFromFrame("#boss-modal");
 }
@@ -613,6 +754,10 @@ function requireMasteryHubForRoot(rootTitle) {
 
 function progressOf(nodeTitle) {
   return Number(requireNode(nodeTitle).dataset.nodeProgress);
+}
+
+function sourceMasteryHubIdOf(nodeTitle) {
+  return requireNode(nodeTitle).dataset.nodeSourceMasteryHubId;
 }
 
 function rootNodeCount() {

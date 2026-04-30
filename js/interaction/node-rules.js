@@ -5,7 +5,7 @@ export function canAdvanceNode(node) {
     return false;
   }
 
-  if (node.parentId === null) {
+  if (node.nodeKind === "origin") {
     return false;
   }
 

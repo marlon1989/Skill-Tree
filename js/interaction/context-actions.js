@@ -2,6 +2,7 @@ import {
   addNode,
   deleteNode,
   getNode,
+  moveNodeLayout,
   renameMasteryHub,
   renameNode,
   resetRootProgress,
@@ -9,6 +10,7 @@ import {
   swapNodes,
 } from "../state.js";
 import { contextOriginParentId } from "./context-origin-parent-id.js";
+import { confirmThemeAction, requestThemeText, showThemeAlert } from "../ui/theme-alert.js";
 
 export function createContextActionRunner(renderApp) {
   const swapSelection = {
@@ -20,19 +22,23 @@ export function createContextActionRunner(renderApp) {
   };
 }
 
-function runContextAction(action, contextInput, swapSelection, renderApp) {
+async function runContextAction(action, contextInput, swapSelection, renderApp) {
   try {
     const context = actionContext(contextInput, swapSelection, renderApp);
     const selectedAction = actionEntry(action);
 
-    selectedAction.guard(context) && selectedAction.run(context);
+    if (!selectedAction.guard(context)) {
+      return;
+    }
+
+    await selectedAction.run(context);
   } catch (error) {
-    window.alert(error.message);
+    showThemeAlert(error.message);
   }
 }
 
 function askTitle(message, suggestedTitle) {
-  return window.prompt(message, suggestedTitle);
+  return requestThemeText(message, suggestedTitle);
 }
 
 function defaultTitle(prefix) {
@@ -87,11 +93,11 @@ function actionMap() {
   };
 }
 
-function addChildNode(context) {
-  persistTitleAction(
+async function addChildNode(context) {
+  await persistTitleAction(
     "Título do subtópico:",
     defaultTitle("Subtópico"),
-    (title) => addNode(context.nodeId, title),
+    (title) => addPositionedNode(context.nodeId, title, "subtopic", context, ""),
     context.renderApp,
   );
 }
@@ -100,21 +106,24 @@ function alwaysAllowed() {
   return true;
 }
 
-function createRootNode(context) {
+async function createRootNode(context) {
   const originParentId = contextOriginParentId(state.nodesById, context.nodeId);
+  const sourceMasteryHubId = originParentId === null ? context.masteryHubId : "";
 
-  persistTitleAction(
+  await persistTitleAction(
     "Título do novo nó de origem:",
     defaultTitle("Tópico"),
-    (title) => addNode(originParentId, title),
+    (title) => addPositionedNode(originParentId, title, "origin", context, sourceMasteryHubId),
     context.renderApp,
   );
 }
 
-function deleteTreeNode(context) {
+async function deleteTreeNode(context) {
   const currentNode = getNode(context.nodeId);
 
-  confirmedDeletionFor(currentNode) && removeNode(context, currentNode);
+  if (await confirmedDeletionFor(currentNode)) {
+    removeNode(context, currentNode);
+  }
 }
 
 function missingAction() {
@@ -124,8 +133,8 @@ function missingAction() {
   };
 }
 
-function persistTitleAction(message, suggestedTitle, persist, renderApp) {
-  const title = askTitle(message, suggestedTitle);
+async function persistTitleAction(message, suggestedTitle, persist, renderApp) {
+  const title = await askTitle(message, suggestedTitle);
 
   hasValue(title) && applyMutation(persist, title, renderApp);
 }
@@ -135,9 +144,33 @@ function applyMutation(persist, value, renderApp) {
   renderApp();
 }
 
+function addPositionedNode(parentId, title, nodeKind, context, sourceMasteryHubId) {
+  const createdNode = addNode(parentId, title, nodeKind, sourceMasteryHubId);
+
+  context.renderApp();
+  alignNodeToContextPoint(createdNode.id, context);
+
+  return createdNode;
+}
+
+function alignNodeToContextPoint(nodeId, context) {
+  const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+
+  if (!nodeElement || !hasContextPoint(context)) {
+    return;
+  }
+
+  moveNodeLayout(
+    nodeId,
+    context.canvasX - nodeElement.offsetLeft - nodeElement.offsetWidth / 2,
+    context.canvasY - nodeElement.offsetTop - nodeElement.offsetHeight / 2,
+  );
+}
+
 function confirmedDeletionFor(currentNode) {
-  return window.confirm(
+  return confirmThemeAction(
     `Deseja deletar "${currentNode.title}"? Os filhos serão reencaixados na hierarquia.`,
+    "Deletar",
   );
 }
 
@@ -147,16 +180,18 @@ function removeNode(context) {
   context.renderApp();
 }
 
-function resetRootNodeProgress(context) {
+async function resetRootNodeProgress(context) {
   const currentNode = getNode(context.nodeId);
 
-  confirmedRootResetFor(currentNode) && applyRootReset(context);
+  if (await confirmedRootResetFor(currentNode)) {
+    applyRootReset(context);
+  }
 }
 
-function renameTreeNode(context) {
+async function renameTreeNode(context) {
   const currentNode = getNode(context.nodeId);
 
-  persistTitleAction(
+  await persistTitleAction(
     "Novo título do nó:",
     currentNode.title,
     (title) => renameNode(context.nodeId, title),
@@ -164,10 +199,10 @@ function renameTreeNode(context) {
   );
 }
 
-function renameMasteryHubNode(context) {
+async function renameMasteryHubNode(context) {
   const currentMasteryHub = masteryHubById(context.masteryHubId);
 
-  persistTitleAction(
+  await persistTitleAction(
     "Novo nome do círculo de maestria:",
     currentMasteryHub.title,
     (title) => renameMasteryHub(context.masteryHubId, title),
@@ -180,8 +215,8 @@ function requireRootSelection(context) {
     return false;
   }
 
-  if (!isRootNode(context.nodeId)) {
-    window.alert("Essa ação só está disponível para nós de origem.");
+  if (!isOriginNode(context.nodeId)) {
+    showThemeAlert("Essa ação só está disponível para nós de origem.");
     return false;
   }
 
@@ -193,7 +228,7 @@ function requireMasteryHubSelection(context) {
     return true;
   }
 
-  window.alert("Selecione um círculo de maestria antes de usar essa ação.");
+  showThemeAlert("Selecione um círculo de maestria antes de usar essa ação.");
 
   return false;
 }
@@ -203,7 +238,7 @@ function requireNodeSelection(context) {
     return true;
   }
 
-  window.alert("Selecione um nó antes de usar essa ação.");
+  showThemeAlert("Selecione um nó antes de usar essa ação.");
 
   return false;
 }
@@ -224,8 +259,12 @@ function hasValue(value) {
   return Boolean(value);
 }
 
-function isRootNode(nodeId) {
-  return getNode(nodeId).parentId === null;
+function hasContextPoint(context) {
+  return Number.isFinite(context.canvasX) && Number.isFinite(context.canvasY);
+}
+
+function isOriginNode(nodeId) {
+  return getNode(nodeId).nodeKind === "origin";
 }
 
 function masteryHubById(masteryHubId) {
@@ -247,8 +286,9 @@ function applyRootReset(context) {
 }
 
 function confirmedRootResetFor(currentNode) {
-  return window.confirm(
-    `Deseja resetar o progresso de "${currentNode.title}" e de todos os subtópicos desta árvore?`,
+  return confirmThemeAction(
+    `Deseja resetar o progresso de "${currentNode.title}" e dos subtópicos desta ramificação? Nós de origem filhos não serão alterados.`,
+    "Resetar progresso",
   );
 }
 
@@ -269,7 +309,7 @@ function cancelSwap(context) {
   return {
     run: () => {
       clearSwapSelection(context.swapSelection);
-      window.alert("Troca cancelada.");
+      showThemeAlert("Troca cancelada.");
     },
   };
 }
@@ -288,7 +328,7 @@ function markSwapSource(context) {
   return {
     run: () => {
       context.swapSelection.sourceNodeId = context.nodeId;
-      window.alert("Nó de origem marcado para troca. Agora escolha outro nó irmão e use 'Trocar Posição' novamente.");
+      showThemeAlert("Nó de origem marcado para troca. Agora escolha outro nó irmão e use 'Trocar Posição' novamente.");
     },
   };
 }

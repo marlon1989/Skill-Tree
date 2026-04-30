@@ -53,10 +53,71 @@ test("syncRootProgress handles branched descendants", () => {
   assert.equal(store.syncRootProgress("node_1").progress, 60);
 });
 
+test("syncRootProgress treats nested origin as complete only after its subtópicos complete", () => {
+  const store = SkillTreeStore.fromSnapshot({
+    childIdsByParent: {
+      [ROOT_PARENT_KEY]: ["node_1"],
+      node_1: ["node_2", "node_3"],
+      node_2: [],
+      node_3: ["node_4", "node_5"],
+      node_4: [],
+      node_5: [],
+    },
+    nextId: 6,
+    nodesById: {
+      node_1: rootNodeSnapshot("node_1", "Matemática", 0, NODE_STATUS.IN_PROGRESS),
+      node_2: masteredNodeSnapshot("node_2", "Soma", "node_1"),
+      node_3: originNodeSnapshot("node_3", "Álgebra", "node_1", 0, NODE_STATUS.IN_PROGRESS),
+      node_4: masteredNodeSnapshot("node_4", "Equações", "node_3"),
+      node_5: childNodeSnapshot("node_5", "Funções", "node_3", 0, NODE_STATUS.INACTIVE),
+    },
+  });
+
+  assert.equal(store.syncRootProgress("node_1").progress, 50);
+});
+
+test("resetRootProgress resets nested origin and subtópicos but preserves origin child branch", () => {
+  const store = SkillTreeStore.fromSnapshot({
+    childIdsByParent: {
+      [ROOT_PARENT_KEY]: ["node_1"],
+      node_1: ["node_2"],
+      node_2: ["node_3", "node_4"],
+      node_3: ["node_5"],
+      node_4: ["node_6"],
+      node_5: [],
+      node_6: [],
+    },
+    nextId: 7,
+    nodesById: {
+      node_1: rootNodeSnapshot("node_1", "Matemática", 100, NODE_STATUS.MASTERED),
+      node_2: originNodeSnapshot("node_2", "Álgebra", "node_1", 100, NODE_STATUS.MASTERED),
+      node_3: masteredNodeSnapshot("node_3", "Equações", "node_2"),
+      node_4: originNodeSnapshot("node_4", "Funções", "node_2", 100, NODE_STATUS.MASTERED),
+      node_5: masteredNodeSnapshot("node_5", "Lineares", "node_3"),
+      node_6: masteredNodeSnapshot("node_6", "Quadráticas", "node_4"),
+    },
+  });
+
+  store.resetRootProgress("node_2");
+
+  assert.equal(store.getNode("node_2").progress, 0);
+  assert.equal(store.getNode("node_3").progress, 0);
+  assert.equal(store.getNode("node_5").progress, 0);
+  assert.equal(store.getNode("node_4").progress, 100);
+  assert.equal(store.getNode("node_6").progress, 100);
+});
+
 function childNodeSnapshot(id, title, parentId, progress, status) {
   return {
     ...layoutSnapshot(id, title, progress, status),
     parentId,
+  };
+}
+
+function originNodeSnapshot(id, title, parentId, progress, status) {
+  return {
+    ...childNodeSnapshot(id, title, parentId, progress, status),
+    nodeKind: "origin",
   };
 }
 
