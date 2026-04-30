@@ -44,6 +44,10 @@ async function main() {
         returnByValue: true,
       });
 
+      if (response.exceptionDetails) {
+        throw new Error(runtimeExceptionMessage(response.exceptionDetails));
+      }
+
       const smokeResult = response.result.value;
 
       await client.send("Page.reload");
@@ -65,6 +69,13 @@ async function main() {
   } finally {
     stopEdgeProcessTree(edgeProcess.pid, PROFILE_DIR);
   }
+}
+
+function runtimeExceptionMessage(exceptionDetails) {
+  const exceptionDescription = exceptionDetails.exception?.description;
+  const exceptionText = exceptionDescription ?? exceptionDetails.text ?? "Erro desconhecido no Runtime.evaluate.";
+
+  return `Smoke no Edge falhou dentro da página: ${exceptionText}`;
 }
 
 async function browserSmokeTest() {
@@ -160,8 +171,7 @@ async function browserSmokeTest() {
 
   clickNode("Soma");
   await waitFor(() => document.getElementById("boss-modal").dataset.nodeId === nodeIdOf("Soma"), 2500, "Boss modal não abriu.");
-  clickBossOption("4");
-  document.getElementById("boss-modal-confirm").click();
+  confirmBossModal("4");
   await waitFor(() => progressOf("Matemática Básica") > 0, 5000, "Root não subiu após boss.");
 
   results.push({
@@ -190,14 +200,25 @@ async function browserSmokeTest() {
   };
 
   function clickBossOption(label) {
-    const button = [...document.querySelectorAll("#boss-modal-options [data-choice]")]
-      .find((option) => option.textContent.trim() === label);
+    const button = bossOptionButtons().find((option) => option.textContent.trim() === label);
 
     if (!button) {
       throw new Error(`Opção '${label}' não encontrada.`);
     }
 
     button.click();
+  }
+
+  function bossOptionButtons() {
+    return [...document.querySelectorAll("#boss-modal-options [data-choice]")];
+  }
+
+  function confirmBossModal(answerLabel) {
+    if (bossOptionButtons().length > 0) {
+      clickBossOption(answerLabel);
+    }
+
+    document.getElementById("boss-modal-confirm").click();
   }
 
   function clearHover(title = "Matemática Básica") {
