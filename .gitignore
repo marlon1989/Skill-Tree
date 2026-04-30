@@ -1,5 +1,22 @@
 node_modules/
 
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 *.log
 server.err.log
 server.out.log
@@ -14,3 +31,4 @@ AGENT.md
 AGENTS.md
 PROJECT_MAP.md
 .codex/skills/caveman/
+edge-dom.txt
