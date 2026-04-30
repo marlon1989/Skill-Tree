@@ -7,7 +7,6 @@ import {
   renameMasteryHubTitle,
   removeMasteryHubForRoot,
   syncMasteryHubsToEligibleRoots,
-  upsertMasteryHub,
 } from "./domain/mastery-hub-state.js";
 import { SkillTreeStore } from "./domain/skill-tree-store.js";
 
@@ -60,15 +59,6 @@ export function getNode(nodeId) {
 
 export function markNodeAsMastered(nodeId) {
   return syncStateAfter(() => store.markNodeAsMastered(nodeId));
-}
-
-export function placeMasteryHub(rootNodeId, x, y) {
-  const linkedRootNodeId = requiredMasteryHubRootNodeId(rootNodeId);
-
-  applyMasteryHubState(upsertMasteryHub(masteryHubStateSnapshot(), linkedRootNodeId, x, y));
-  persistAppState();
-
-  return masteryHubStateSnapshot();
 }
 
 export function moveConnectionControl(nodeId, offsetX, offsetY) {
@@ -370,24 +360,3 @@ function syncMasteryHubsToTree(options = {}) {
   options.persistState && persistAppState();
 }
 
-function requiredMasteryHubRootNodeId(rootNodeId) {
-  const normalizedRootNodeId = String(rootNodeId ?? "").trim();
-  const targetRootNode = state.nodesById[normalizedRootNodeId];
-  const childIds = state.childIdsByParent[normalizedRootNodeId] ?? [];
-
-  if (!targetRootNode || targetRootNode.parentId !== null) {
-    throw new Error(
-      `Root da maestria inválido: "${normalizedRootNodeId}". ` +
-      "Esperado id de nó de origem existente.",
-    );
-  }
-
-  if (childIds.length === 0) {
-    throw new Error(
-      `Root da maestria inválido: "${normalizedRootNodeId}". ` +
-      "Esperado nó de origem com ao menos um subtópico.",
-    );
-  }
-
-  return normalizedRootNodeId;
-}
