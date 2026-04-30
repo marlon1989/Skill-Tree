@@ -16,6 +16,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
   const holdController = createHoldController(renderApp);
   const layoutDragController = createLayoutDragController(renderApp, canvasCameraController.scale);
   const contextActionRunner = createContextActionRunner(renderApp);
+  const hoverPreviewController = createHoverPreviewController();
 
   elements.canvas.addEventListener("pointerdown", (event) => {
     canvasCameraController.beginPan(event);
@@ -131,7 +132,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       return;
     }
 
-    showHoverModal(event.clientX + 18, event.clientY + 18, hoverContentOf(nodeElement));
+    hoverPreviewController.show(event, nodeElement);
   });
 
   elements.nodeLayer.addEventListener("pointermove", (event) => {
@@ -141,7 +142,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       return;
     }
 
-    showHoverModal(event.clientX + 18, event.clientY + 18, hoverContentOf(nodeElement));
+    hoverPreviewController.show(event, nodeElement);
   });
 
   elements.nodeLayer.addEventListener("pointerout", (event) => {
@@ -152,7 +153,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       return;
     }
 
-    hideHoverModal();
+    hoverPreviewController.hide();
   });
 
   elements.canvas.addEventListener("contextmenu", (event) => {
@@ -174,7 +175,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
     }
 
     hideContextMenu();
-    !event.target.closest("[data-node-id]") && hideHoverModal();
+    !event.target.closest("[data-node-id]") && hoverPreviewController.hide();
   });
 
   elements.contextMenu.addEventListener("click", (event) => {
@@ -241,7 +242,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
       holdController.end();
       hideBossModal();
       hideContextMenu();
-      hideHoverModal();
+      hoverPreviewController.hide();
       hideThemeAlert();
     }
   });
@@ -266,6 +267,61 @@ function hoverContentOf(nodeElement) {
     status: nodeElement.dataset.nodeStatusLabel || nodeElement.dataset.nodeStatus || "",
     title: nodeElement.dataset.nodeTitle || "",
   };
+}
+
+function createHoverPreviewController() {
+  const hoverPreviewState = {
+    frameId: null,
+    nextPreview: null,
+  };
+
+  return {
+    hide: () => hideScheduledHoverPreview(hoverPreviewState),
+    show: (event, nodeElement) => scheduleHoverPreview(event, nodeElement, hoverPreviewState),
+  };
+}
+
+function hideScheduledHoverPreview(hoverPreviewState) {
+  cancelHoverPreviewFrame(hoverPreviewState);
+  hoverPreviewState.nextPreview = null;
+  hideHoverModal();
+}
+
+function scheduleHoverPreview(event, nodeElement, hoverPreviewState) {
+  hoverPreviewState.nextPreview = {
+    content: hoverContentOf(nodeElement),
+    x: event.clientX + 18,
+    y: event.clientY + 18,
+  };
+
+  if (hoverPreviewState.frameId !== null) {
+    return;
+  }
+
+  hoverPreviewState.frameId = window.requestAnimationFrame(() => {
+    showPendingHoverPreview(hoverPreviewState);
+  });
+}
+
+function showPendingHoverPreview(hoverPreviewState) {
+  const nextPreview = hoverPreviewState.nextPreview;
+
+  hoverPreviewState.frameId = null;
+
+  if (!nextPreview) {
+    return;
+  }
+
+  showHoverModal(nextPreview.x, nextPreview.y, nextPreview.content);
+}
+
+function cancelHoverPreviewFrame(hoverPreviewState) {
+  if (hoverPreviewState.frameId === null) {
+    return;
+  }
+
+  window.cancelAnimationFrame(hoverPreviewState.frameId);
+  hoverPreviewState.frameId = null;
 }
 
 function setSelectedBossOption(modalElement, optionsContainer, selectedChoice) {
