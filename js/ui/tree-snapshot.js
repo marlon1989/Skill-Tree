@@ -201,6 +201,10 @@ class TreeNode {
     return this.snapshot.parentId === null;
   }
 
+  isOrigin() {
+    return this.snapshot.nodeKind === "origin" || this.isRoot();
+  }
+
   layoutOffset() {
     return {
       x: Number(this.snapshot.layoutOffsetX ?? 0),
@@ -218,6 +222,10 @@ class TreeNode {
 
   progress() {
     return new ProgressValue(this.snapshot.progress);
+  }
+
+  sourceMasteryHubId() {
+    return String(this.snapshot.sourceMasteryHubId ?? "");
   }
 
   status() {

@@ -121,6 +121,29 @@ export class TreeLayoutEngine {
     });
   }
 
+  masteryHubSourceConnections() {
+    const resolvedHubsById = masteryHubsById(this.resolvedMasteryHubEntries());
+    const sourceConnections = [];
+
+    this.treeSnapshot.nodes().each((treeNode) => {
+      const sourceMasteryHub = resolvedHubsById.get(treeNode.sourceMasteryHubId());
+
+      if (!sourceMasteryHub) {
+        return;
+      }
+
+      sourceConnections.push(new MasteryHubLinkCurve(
+        treeNode.id().toString(),
+        new CartesianPoint(sourceMasteryHub.x, sourceMasteryHub.y),
+        this.nodePositions.require(treeNode.id()).centerPoint(),
+        this.branchThemeOf(treeNode.id()),
+        "data-mastery-source-link",
+      ));
+    });
+
+    return sourceConnections;
+  }
+
   masteryHubMarkup() {
     return this.resolvedMasteryHubEntries().map((masteryHub) => {
       const linkedRootNode = this.treeSnapshot.nodes().require(masteryHub.linkedRootNodeId);
@@ -276,6 +299,7 @@ export class RenderedTree {
       connectionHandles: layoutEngine.renderedConnectionHandles(),
       connections: layoutEngine.connectionCurves(),
       masteryHubConnections: layoutEngine.masteryHubConnections(),
+      masteryHubSourceConnections: layoutEngine.masteryHubSourceConnections(),
       masteryHubMarkup: layoutEngine.masteryHubMarkup(),
       nodes: layoutEngine.renderedNodes(),
       stageSize: layoutEngine.stageSize(),
@@ -286,6 +310,7 @@ export class RenderedTree {
   connectionMarkup() {
     return this.attributes.backdropMarkup +
       this.attributes.masteryHubConnections.map((curve) => curve.toMarkup()).join("") +
+      this.attributes.masteryHubSourceConnections.map((curve) => curve.toMarkup()).join("") +
       this.attributes.connections.map((curve) => curve.toMarkup()).join("");
   }
 
@@ -338,21 +363,31 @@ class ConnectionCurve {
         d="${this.path()}"
         fill="none"
         stroke="${this.branchTheme.connectionStroke()}"
-        stroke-width="3"
+        stroke-width="10"
         stroke-linecap="round"
-        filter="drop-shadow(0 0 10px ${this.branchTheme.connectionGlow()})"
-        opacity="0.86"
+        vector-effect="non-scaling-stroke"
+        opacity="0.18"
+      />
+      <path
+        d="${this.path()}"
+        fill="none"
+        stroke="${this.branchTheme.connectionStroke()}"
+        stroke-width="3.25"
+        stroke-linecap="round"
+        vector-effect="non-scaling-stroke"
+        opacity="0.94"
       />
     `;
   }
 }
 
 class MasteryHubLinkCurve {
-  constructor(masteryHubId, startPoint, endPoint, branchTheme) {
+  constructor(masteryHubId, startPoint, endPoint, branchTheme, dataAttribute = "data-mastery-hub-link") {
     this.masteryHubId = masteryHubId;
     this.startPoint = startPoint;
     this.endPoint = endPoint;
     this.branchTheme = branchTheme;
+    this.dataAttribute = dataAttribute;
   }
 
   controlPoint() {
@@ -372,14 +407,24 @@ class MasteryHubLinkCurve {
     return `
       <path
         d="${this.path()}"
-        data-mastery-hub-link="${this.masteryHubId}"
         fill="none"
         stroke="${this.branchTheme.connectionStroke()}"
-        stroke-width="2.5"
+        stroke-width="8"
         stroke-linecap="round"
         stroke-dasharray="8 9"
-        filter="drop-shadow(0 0 10px ${this.branchTheme.connectionGlow()})"
-        opacity="0.6"
+        vector-effect="non-scaling-stroke"
+        opacity="0.16"
+      />
+      <path
+        d="${this.path()}"
+        ${this.dataAttribute}="${this.masteryHubId}"
+        fill="none"
+        stroke="${this.branchTheme.connectionStroke()}"
+        stroke-width="2.75"
+        stroke-linecap="round"
+        stroke-dasharray="8 9"
+        vector-effect="non-scaling-stroke"
+        opacity="0.78"
       />
     `;
   }
@@ -453,6 +498,10 @@ class NodePositionMap {
   }
 }
 
+function masteryHubsById(masteryHubs) {
+  return new Map(masteryHubs.map((masteryHub) => [masteryHub.id, masteryHub]));
+}
+
 class RenderedNode {
   constructor(treeNode, position, layoutTokens, branchTheme) {
     this.treeNode = treeNode;
@@ -462,7 +511,7 @@ class RenderedNode {
   }
 
   rootBannerMarkup() {
-    if (!this.treeNode.isRoot()) {
+    if (!this.treeNode.isOrigin()) {
       return "";
     }
 
@@ -489,8 +538,10 @@ class RenderedNode {
         class="group absolute z-[4] flex cursor-pointer flex-col items-center text-center text-slate-100 transition-transform duration-300 hover:-translate-y-1"
         aria-label="${ariaLabel}"
         data-node-id="${this.treeNode.id().toMarkup()}"
+        data-node-kind="${this.treeNode.isOrigin() ? "origin" : "subtopic"}"
         data-node-parent-id="${this.treeNode.parentId().optionalMarkup()}"
         data-node-progress="${this.treeNode.progress().raw()}"
+        data-node-source-mastery-hub-id="${this.treeNode.sourceMasteryHubId()}"
         data-node-order="${this.treeNode.orderIndexLabel()}"
         data-node-status="${this.treeNode.status().raw().toMarkup()}"
         data-node-status-label="${statusMarkup}"
@@ -660,7 +711,7 @@ function controlPointFor(startPoint, endPoint, connectionControlOffset) {
 }
 
 function coreSizeFor(treeNode, layoutTokens) {
-  return treeNode.isRoot() ? layoutTokens.rootCoreSize() : layoutTokens.coreSize();
+  return treeNode.isOrigin() ? layoutTokens.rootCoreSize() : layoutTokens.coreSize();
 }
 
 function maxNodeSizeFor(layoutTokens) {
@@ -668,7 +719,7 @@ function maxNodeSizeFor(layoutTokens) {
 }
 
 function nodeSizeFor(treeNode, layoutTokens) {
-  return treeNode.isRoot() ? layoutTokens.rootNodeSize() : layoutTokens.nodeSize();
+  return treeNode.isOrigin() ? layoutTokens.rootNodeSize() : layoutTokens.nodeSize();
 }
 
 function orbitRadiusFor(depthValue, layoutTokens) {

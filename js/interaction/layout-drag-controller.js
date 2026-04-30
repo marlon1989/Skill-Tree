@@ -1,4 +1,4 @@
-import { moveConnectionControl, moveNodeLayout, state } from "../state.js";
+import { freezeMasteryHubLayout, moveConnectionControl, moveMasteryHub, moveNodeLayout, state } from "../state.js";
 
 const MIN_NODE_POSITION = 12;
 
@@ -11,6 +11,8 @@ export function createLayoutDragController(renderApp, currentScale = () => 1) {
 
   return {
     beginConnectionDrag: (event, nodeId) => beginConnectionDrag(event, nodeId, dragState),
+    beginMasteryHubDrag: (event, masteryHubId, masteryHubElement) =>
+      beginMasteryHubDrag(event, masteryHubId, masteryHubElement, dragState),
     beginNodeDrag: (event, nodeId, nodeElement) => beginNodeDrag(event, nodeId, nodeElement, dragState),
     end: () => endDrag(dragState),
     suppressesClick: () => dragState.suppressClickUntil > Date.now(),
@@ -36,6 +38,7 @@ function beginConnectionDrag(event, nodeId, dragState) {
 function beginNodeDrag(event, nodeId, nodeElement, dragState) {
   event.preventDefault();
   event.stopPropagation();
+  freezeLinkedMasteryHub(nodeId, nodeElement);
 
   dragState.activeDrag = {
     initialLeft: nodeElement.offsetLeft,
@@ -46,6 +49,21 @@ function beginNodeDrag(event, nodeId, nodeElement, dragState) {
     startX: event.clientX,
     startY: event.clientY,
     type: "node",
+  };
+  dragState.didMove = false;
+}
+
+function beginMasteryHubDrag(event, masteryHubId, masteryHubElement, dragState) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  dragState.activeDrag = {
+    initialLeft: numericStylePosition(masteryHubElement, "left"),
+    initialTop: numericStylePosition(masteryHubElement, "top"),
+    masteryHubId,
+    startX: event.clientX,
+    startY: event.clientY,
+    type: "mastery-hub",
   };
   dragState.didMove = false;
 }
@@ -70,16 +88,25 @@ function updateDrag(event, dragState, renderApp, currentScale) {
 
   if (dragState.activeDrag.type === "node") {
     updateNodePosition(dragState.activeDrag, deltaX, deltaY);
-  } else {
+  } else if (dragState.activeDrag.type === "connection") {
     moveConnectionControl(
       dragState.activeDrag.nodeId,
       dragState.activeDrag.initialOffsetX + deltaX,
       dragState.activeDrag.initialOffsetY + deltaY,
     );
+  } else {
+    updateMasteryHubPosition(dragState.activeDrag, deltaX, deltaY);
   }
 
   dragState.didMove = true;
   renderApp();
+}
+
+function updateMasteryHubPosition(activeDrag, deltaX, deltaY) {
+  const nextLeft = Math.max(MIN_NODE_POSITION, activeDrag.initialLeft + deltaX);
+  const nextTop = Math.max(MIN_NODE_POSITION, activeDrag.initialTop + deltaY);
+
+  moveMasteryHub(activeDrag.masteryHubId, nextLeft, nextTop);
 }
 
 function updateNodePosition(activeDrag, deltaX, deltaY) {
@@ -91,4 +118,28 @@ function updateNodePosition(activeDrag, deltaX, deltaY) {
     activeDrag.initialOffsetX + (nextAbsoluteLeft - activeDrag.initialLeft),
     activeDrag.initialOffsetY + (nextAbsoluteTop - activeDrag.initialTop),
   );
+}
+
+function freezeLinkedMasteryHub(nodeId, nodeElement) {
+  if (state.nodesById[nodeId]?.parentId !== null) {
+    return;
+  }
+
+  const masteryHubElement = nodeElement.parentElement?.querySelector(
+    `[data-mastery-root-id="${nodeId}"]`,
+  );
+
+  if (!masteryHubElement) {
+    return;
+  }
+
+  freezeMasteryHubLayout(
+    nodeId,
+    numericStylePosition(masteryHubElement, "left"),
+    numericStylePosition(masteryHubElement, "top"),
+  );
+}
+
+function numericStylePosition(element, propertyName) {
+  return Number.parseFloat(element.style[propertyName] || "0") || 0;
 }

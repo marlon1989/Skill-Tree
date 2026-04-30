@@ -19,6 +19,7 @@ export class ApplicationDom {
       bossModal: new BossModalElement({
         modal: DomElement.require("boss-modal"),
         options: DomElement.require("boss-modal-options"),
+        questionPanel: DomElement.require("boss-modal-question-panel"),
         question: DomElement.require("boss-modal-question"),
         subtitle: DomElement.require("boss-modal-subtitle"),
         title: DomElement.require("boss-modal-title"),
@@ -100,6 +101,10 @@ export class BossModalContent {
       .join("");
   }
 
+  hasOptions() {
+    return this.attributes.options.length > 0;
+  }
+
   question() {
     return this.attributes.question;
   }
@@ -134,6 +139,7 @@ class BossModalElement {
     this.elements.subtitle.setText(content.subtitle());
     this.elements.question.setText(content.question());
     this.elements.options.setHtml(content.optionMarkup());
+    this.toggleQuestionPanel(content.hasOptions());
     this.elements.modal.setDataAttribute("nodeId", nodeIdentifier.toString());
     this.elements.modal.setDataAttribute("selectedChoice", "");
     this.elements.modal.removeClass("hidden");
@@ -144,6 +150,10 @@ class BossModalElement {
   clearSelection() {
     this.elements.modal.setDataAttribute("nodeId", "");
     this.elements.modal.setDataAttribute("selectedChoice", "");
+  }
+
+  toggleQuestionPanel(hasOptions) {
+    this.elements.questionPanel.element.classList.toggle("hidden", !hasOptions);
   }
 }
 
