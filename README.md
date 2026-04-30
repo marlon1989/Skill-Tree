@@ -11,6 +11,7 @@ Skill Tree is an experimental web app for organizing study paths as a visual tre
 - Reset progress by branch while preserving child origin branches.
 - Move nodes, connection handles, and mastery circles visually.
 - Use themed panels for alerts, confirmations, and text input.
+- Keep drag interactions responsive with frame-scheduled rendering and deferred persistence.
 - Run unit tests and browser smoke tests with Microsoft Edge.
 
 ## Requirements
@@ -44,6 +45,8 @@ Run the unit tests:
 npm test
 ```
 
+The unit test suite also includes a large-tree performance smoke test that renders 500 nodes and fails if layout/render generation exceeds the configured budget.
+
 Run the browser smoke test:
 
 ```powershell
@@ -61,6 +64,18 @@ Note: `npm run test:smoke` uses Edge DevTools Protocol automation and expects Mi
 ```text
 C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
 ```
+
+## Performance Notes
+
+The tree renderer is optimized for interactive editing without introducing a build step or framework runtime:
+
+- Drag updates are scheduled with `requestAnimationFrame` instead of rendering on every raw pointer event.
+- Node, connection handle, and mastery circle movement update visible positions immediately.
+- Drag persistence is deferred until the drag ends, avoiding repeated synchronous `localStorage` writes.
+- Node layout updates synchronize only the changed node snapshot where possible.
+- Tree layout caches subtree metrics and uses constant-time node lookup inside render snapshots.
+
+For structural changes, such as creating or deleting nodes, the app still performs a full tree render. This keeps the data flow simple while reserving the lighter path for frequent pointer interactions.
 
 ## Project Structure
 
