@@ -61,26 +61,26 @@ export function markNodeAsMastered(nodeId) {
   return syncStateAfter(() => store.markNodeAsMastered(nodeId));
 }
 
-export function moveConnectionControl(nodeId, offsetX, offsetY) {
-  return syncStateAfter(() => store.moveConnectionControl(nodeId, offsetX, offsetY));
+export function moveConnectionControl(nodeId, offsetX, offsetY, options = {}) {
+  return syncNodeAfter(() => store.moveConnectionControl(nodeId, offsetX, offsetY), options);
 }
 
-export function freezeMasteryHubLayout(rootNodeId, x, y) {
+export function freezeMasteryHubLayout(rootNodeId, x, y, options = {}) {
   applyMasteryHubState(freezeMasteryHubForRoot(masteryHubStateSnapshot(), rootNodeId, x, y));
-  persistAppState();
+  options.persistState !== false && persistAppState();
 
   return masteryHubStateSnapshot();
 }
 
-export function moveMasteryHub(masteryHubId, x, y) {
+export function moveMasteryHub(masteryHubId, x, y, options = {}) {
   applyMasteryHubState(moveMasteryHubPosition(masteryHubStateSnapshot(), masteryHubId, x, y));
-  persistAppState();
+  options.persistState !== false && persistAppState();
 
   return masteryHubStateSnapshot();
 }
 
-export function moveNodeLayout(nodeId, offsetX, offsetY) {
-  return syncStateAfter(() => store.moveNodeLayout(nodeId, offsetX, offsetY));
+export function moveNodeLayout(nodeId, offsetX, offsetY, options = {}) {
+  return syncNodeAfter(() => store.moveNodeLayout(nodeId, offsetX, offsetY), options);
 }
 
 export function renameNode(nodeId, title) {
@@ -114,6 +114,10 @@ export function updateProgress(nodeId, amount) {
   return syncStateAfter(() => store.updateProgress(nodeId, amount));
 }
 
+export function persistCurrentState() {
+  persistAppState();
+}
+
 function syncStateAfter(callback, options = {}) {
   const result = callback();
 
@@ -122,6 +126,15 @@ function syncStateAfter(callback, options = {}) {
   options.persistState !== false && persistAppState();
 
   return result;
+}
+
+function syncNodeAfter(callback, options = {}) {
+  const nodeSnapshot = callback();
+
+  state.nodesById[nodeSnapshot.id] = nodeSnapshot;
+  options.persistState !== false && persistAppState();
+
+  return nodeSnapshot;
 }
 
 function createStore() {

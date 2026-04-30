@@ -60,6 +60,7 @@ export class TreeSnapshot {
 class NodeCollection {
   constructor(entries) {
     this.entries = entries;
+    this.entriesById = new Map(entries.map((entry) => [entry.id().toString(), entry]));
   }
 
   static from(snapshot) {
@@ -77,7 +78,7 @@ class NodeCollection {
   }
 
   require(nodeIdentifier) {
-    const node = this.entries.find((entry) => entry.id().toString() === nodeIdentifier.toString());
+    const node = this.entriesById.get(nodeIdentifier.toString());
 
     if (!node) {
       throw new Error(`Nó "${nodeIdentifier.toString()}" não encontrado no snapshot.`);

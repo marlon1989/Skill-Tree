@@ -66,7 +66,7 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
         return;
       }
 
-      layoutDragController.beginConnectionDrag(event, nodeId);
+      layoutDragController.beginConnectionDrag(event, nodeId, connectionHandle);
       return;
     }
 

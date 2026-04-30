@@ -62,6 +62,7 @@ async function runBrowserSmoke() {
   smokeResults.push(renderInitialResult());
   smokeResults.push(await canvasCameraNavigationResult());
   smokeResults.push(initialRootMasteryHubResult());
+  smokeResults.push(await subtopicDragPersistenceResult());
   smokeResults.push(await subtopicContextOriginResult());
   smokeResults.push(await emptyCanvasRootResult());
   smokeResults.push(await newRootAutoMasteryHubResult());
@@ -149,6 +150,48 @@ async function canvasCameraNavigationResult() {
       Number(canvasElement.dataset.cameraZoom ?? 1) > initialZoom &&
       Number(canvasElement.dataset.cameraOffsetX ?? 0) !== initialOffsetX &&
       Number(canvasElement.dataset.cameraOffsetY ?? 0) !== initialOffsetY,
+  };
+}
+
+async function subtopicDragPersistenceResult() {
+  const nodeTitle = "Subtração";
+  const nodeElement = requireNode(nodeTitle);
+  const dragHandle = requireNodeDragHandle(nodeElement, nodeTitle);
+  const initialLeft = numericStylePixel(nodeElement, "left");
+  const initialTop = numericStylePixel(nodeElement, "top");
+  const pointerPoint = nodePointerPoint(dragHandle);
+  const viewportScale = Number(requireElementFromFrame("#skill-tree-canvas").dataset.cameraZoom || 1);
+  const expectedOffsetX = 36 / viewportScale;
+  const expectedOffsetY = 24 / viewportScale;
+
+  dragHandle.dispatchEvent(pointerLikeEvent("pointerdown", pointerPoint));
+  frameDocument().dispatchEvent(pointerLikeEvent("pointermove", {
+    clientX: pointerPoint.clientX + 36,
+    clientY: pointerPoint.clientY + 24,
+  }));
+  frameDocument().dispatchEvent(pointerLikeEvent("pointerup", {
+    clientX: pointerPoint.clientX + 36,
+    clientY: pointerPoint.clientY + 24,
+  }));
+  await sleep(120);
+
+  const movedNodeElement = requireNode(nodeTitle);
+  const storedNode = storedNodeByTitle(nodeTitle);
+
+  return {
+    detail: {
+      layoutOffsetX: storedNode?.layoutOffsetX ?? null,
+      layoutOffsetY: storedNode?.layoutOffsetY ?? null,
+      movedLeft: numericStylePixel(movedNodeElement, "left"),
+      movedTop: numericStylePixel(movedNodeElement, "top"),
+      viewportScale,
+    },
+    name: "subtopico-arrasta-e-persiste-no-fim",
+    passed:
+      numericStylePixel(movedNodeElement, "left") !== initialLeft &&
+      numericStylePixel(movedNodeElement, "top") !== initialTop &&
+      almostEqual(storedNode?.layoutOffsetX, expectedOffsetX) &&
+      almostEqual(storedNode?.layoutOffsetY, expectedOffsetY),
   };
 }
 
@@ -742,6 +785,16 @@ function requireNode(nodeTitle) {
   return targetNodeElement;
 }
 
+function requireNodeDragHandle(nodeElement, nodeTitle) {
+  const dragHandle = nodeElement.querySelector("[data-node-drag-handle]");
+
+  if (!dragHandle) {
+    throw new Error(`Handle de drag do nó '${nodeTitle}' não encontrado.`);
+  }
+
+  return dragHandle;
+}
+
 function requireMasteryHubForRoot(rootTitle) {
   const targetMasteryHub = masteryHubElementForRoot(rootTitle);
 
@@ -777,6 +830,22 @@ function nodePointerPoint(nodeElement) {
     clientX: nodeBounds.left + nodeBounds.width / 2,
     clientY: nodeBounds.top + nodeBounds.height / 2,
   };
+}
+
+function numericStylePixel(element, propertyName) {
+  return Number.parseFloat(element.style[propertyName] || "0") || 0;
+}
+
+function storedNodeByTitle(nodeTitle) {
+  const rawState = requireFrameWindow().localStorage.getItem(APP_STATE_STORAGE_KEY);
+  const parsedState = JSON.parse(rawState || "{}");
+
+  return Object.values(parsedState.nodesById ?? {})
+    .find((node) => node.title === nodeTitle);
+}
+
+function almostEqual(actualValue, expectedValue) {
+  return Math.abs(Number(actualValue) - Number(expectedValue)) < 0.05;
 }
 
 function pointerLikeEvent(eventName, pointerPoint = {}) {

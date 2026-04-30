@@ -11,6 +11,8 @@ export class TreeLayoutEngine {
     this.treeSnapshot = treeSnapshot;
     this.layoutTokens = layoutTokens;
     this.rootIdentifiersValue = treeSnapshot.rootIdentifiers();
+    this.subtreeMetricsByNodeId = new Map();
+    this.resolvedMasteryHubEntriesValue = null;
     this.treeMetrics = this.buildTreeMetrics();
     this.stageSizeValue = this.buildStageSize();
     this.centerPointValue = centerPointFor(this.stageSizeValue);
@@ -165,7 +167,11 @@ export class TreeLayoutEngine {
   }
 
   resolvedMasteryHubEntries() {
-    return this.masteryHubEntries().map((masteryHub) => {
+    if (this.resolvedMasteryHubEntriesValue !== null) {
+      return this.resolvedMasteryHubEntriesValue;
+    }
+
+    this.resolvedMasteryHubEntriesValue = this.masteryHubEntries().map((masteryHub) => {
       const hubPoint = this.masteryHubPointFor(masteryHub);
 
       return {
@@ -174,6 +180,8 @@ export class TreeLayoutEngine {
         y: hubPoint.y(),
       };
     });
+
+    return this.resolvedMasteryHubEntriesValue;
   }
 
   placeChildren(parentIdentifier, depthValue, parentSector, branchTheme) {
@@ -270,6 +278,12 @@ export class TreeLayoutEngine {
   }
 
   subtreeMetricsOf(nodeIdentifier) {
+    const nodeIdentifierKey = nodeIdentifier.toString();
+
+    if (this.subtreeMetricsByNodeId.has(nodeIdentifierKey)) {
+      return this.subtreeMetricsByNodeId.get(nodeIdentifierKey);
+    }
+
     const treeNode = this.treeSnapshot.nodes().require(nodeIdentifier);
     const childIdentifiers = this.treeSnapshot.childIdentifiersOf(nodeIdentifier);
     const initialMetrics = {
@@ -277,7 +291,7 @@ export class TreeLayoutEngine {
       nodeCount: 1,
     };
 
-    return childIdentifiers.reduce((subtreeMetrics, childIdentifier) => {
+    const metrics = childIdentifiers.reduce((subtreeMetrics, childIdentifier) => {
       const childMetrics = this.subtreeMetricsOf(childIdentifier);
 
       return {
@@ -285,6 +299,10 @@ export class TreeLayoutEngine {
         nodeCount: subtreeMetrics.nodeCount + childMetrics.nodeCount,
       };
     }, initialMetrics);
+
+    this.subtreeMetricsByNodeId.set(nodeIdentifierKey, metrics);
+
+    return metrics;
   }
 }
 
