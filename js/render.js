@@ -1,4 +1,9 @@
-import { getLinearDecayMultiplier, ROOT_PARENT_KEY, state } from "./state.js";
+import {
+  MAXIMUM_DECAY_MULTIPLIER,
+  MINIMUM_DECAY_MULTIPLIER,
+  ROOT_PARENT_KEY,
+} from "./domain/constants.js";
+import { state } from "./state.js";
 import { renderTree } from "./ui.js";
 
 function cloneHierarchy(childIdsByParent) {
@@ -34,7 +39,7 @@ export function createRenderableState(treeState = state) {
     }
 
     nodesById[nodeId].orderIndex = index + 1;
-    nodesById[nodeId].decayMultiplier = getLinearDecayMultiplier(nodeId);
+    nodesById[nodeId].decayMultiplier = decayMultiplierAt(index, orderedNodeIds.length);
   });
 
   return {
@@ -62,6 +67,18 @@ function copyHierarchyEntry([parentKey, childIds]) {
 
 function copyNodeEntry(node) {
   return [node.id, { ...node }];
+}
+
+function decayMultiplierAt(nodeIndex, totalNodeCount) {
+  if (totalNodeCount === 1) {
+    return MAXIMUM_DECAY_MULTIPLIER;
+  }
+
+  const decayRange = MAXIMUM_DECAY_MULTIPLIER - MINIMUM_DECAY_MULTIPLIER;
+  const intervalSize = decayRange / (totalNodeCount - 1);
+  const rawMultiplier = MAXIMUM_DECAY_MULTIPLIER - intervalSize * nodeIndex;
+
+  return Number(rawMultiplier.toFixed(2));
 }
 
 function cloneMasteryHubs(masteryHubs) {
