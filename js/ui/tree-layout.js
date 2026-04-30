@@ -11,6 +11,7 @@ export class TreeLayoutEngine {
     this.treeSnapshot = treeSnapshot;
     this.layoutTokens = layoutTokens;
     this.rootIdentifiersValue = treeSnapshot.rootIdentifiers();
+    this.connectionCurvesValue = null;
     this.subtreeMetricsByNodeId = new Map();
     this.resolvedMasteryHubEntriesValue = null;
     this.treeMetrics = this.buildTreeMetrics();
@@ -76,6 +77,10 @@ export class TreeLayoutEngine {
   }
 
   connectionCurves() {
+    if (this.connectionCurvesValue !== null) {
+      return this.connectionCurvesValue;
+    }
+
     const curves = [];
 
     this.treeSnapshot.nodes().each((treeNode) => {
@@ -104,7 +109,9 @@ export class TreeLayoutEngine {
       );
     });
 
-    return curves;
+    this.connectionCurvesValue = curves;
+
+    return this.connectionCurvesValue;
   }
 
   masteryHubConnections() {
