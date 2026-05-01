@@ -6,10 +6,15 @@ import {
   persistCurrentState,
   state,
 } from "../state.js";
+import {
+  edgePointToward,
+  masteryHubControlPoint,
+  midpointControlPoint,
+  quadraticSvgPath,
+} from "../ui/svg-path-geometry.js";
 
 const MIN_NODE_POSITION = 12;
 const TRANSIENT_DRAG_OPTIONS = Object.freeze({ persistState: false });
-const SVG_PATH_PRECISION = 3;
 
 export function createLayoutDragController(renderApp, currentScale = () => 1) {
   const dragState = {
@@ -343,40 +348,28 @@ function setMasterySourcePath(nodeId, pathValue) {
 function connectionPathFor(parentElement, childElement, childNodeId) {
   const parentCenter = elementCenterPoint(parentElement);
   const childCenter = elementCenterPoint(childElement);
-  const startPoint = linkPointToward(parentCenter, childCenter, elementSize(parentElement));
-  const endPoint = linkPointToward(childCenter, parentCenter, elementSize(childElement));
+  const startPoint = edgePointToward(parentCenter, childCenter, elementSize(parentElement));
+  const endPoint = edgePointToward(childCenter, parentCenter, elementSize(childElement));
   const controlPoint = connectionControlPoint(startPoint, endPoint, childNodeId);
 
-  return quadraticPath(startPoint, controlPoint, endPoint);
+  return quadraticSvgPath(startPoint, controlPoint, endPoint);
 }
 
 function masteryHubPathFor(masteryHubElement, rootElement) {
   const startPoint = elementCenterPoint(masteryHubElement);
   const endPoint = elementCenterPoint(rootElement);
-  const controlPoint = {
-    x: (startPoint.x + endPoint.x) / 2,
-    y: Math.min(startPoint.y, endPoint.y) - 36,
-  };
+  const controlPoint = masteryHubControlPoint(startPoint, endPoint);
 
-  return quadraticPath(startPoint, controlPoint, endPoint);
+  return quadraticSvgPath(startPoint, controlPoint, endPoint);
 }
 
 function connectionControlPoint(startPoint, endPoint, childNodeId) {
   const nodeSnapshot = state.nodesById[childNodeId] ?? {};
 
-  return {
-    x: (startPoint.x + endPoint.x) / 2 + Number(nodeSnapshot.connectionControlOffsetX ?? 0),
-    y: (startPoint.y + endPoint.y) / 2 + Number(nodeSnapshot.connectionControlOffsetY ?? 0),
-  };
-}
-
-function linkPointToward(sourcePoint, targetPoint, sourceSize) {
-  const angleInRadians = Math.atan2(targetPoint.y - sourcePoint.y, targetPoint.x - sourcePoint.x);
-
-  return {
-    x: sourcePoint.x + Math.cos(angleInRadians) * sourceSize / 2,
-    y: sourcePoint.y + Math.sin(angleInRadians) * sourceSize / 2,
-  };
+  return midpointControlPoint(startPoint, endPoint, {
+    x: nodeSnapshot.connectionControlOffsetX,
+    y: nodeSnapshot.connectionControlOffsetY,
+  });
 }
 
 function elementCenterPoint(element) {
@@ -391,18 +384,6 @@ function elementSize(element) {
   const styledSize = Number.parseFloat(element.style.width || element.style.height || "0");
 
   return styledSize || element.offsetWidth || 0;
-}
-
-function quadraticPath(startPoint, controlPoint, endPoint) {
-  return `M ${formattedPoint(startPoint)} Q ${formattedPoint(controlPoint)}, ${formattedPoint(endPoint)}`;
-}
-
-function formattedPoint(point) {
-  return `${formatPathNumber(point.x)} ${formatPathNumber(point.y)}`;
-}
-
-function formatPathNumber(value) {
-  return Number(value).toFixed(SVG_PATH_PRECISION).replace(/\.?0+$/, "");
 }
 
 function escapedSelectorValue(value) {
