@@ -53,6 +53,12 @@ Run the browser smoke test:
 npm run test:browser
 ```
 
+Run the Edge DevTools Protocol smoke test:
+
+```powershell
+npm run test:smoke
+```
+
 Run the full configured test suite:
 
 ```powershell
@@ -84,14 +90,25 @@ assets/
   icons/              Visual icons and cursors.
   sfx/                Sound effects.
 js/
+  browser-smoke/      Shared helpers and flows for browser smoke tests.
   domain/             Tree business rules.
   interaction/        Mouse, camera, context menu, and progress controls.
-  ui/                 Rendering, layout, modal, and visual components.
+  ui/                 Rendering, layout, modal, visual components, and SVG geometry.
 tests/
   domain/             Domain rule tests.
   interaction/        Interaction and progression rule tests.
-  ui/                 Layout and visual state tests.
+  ui/                 Layout, SVG geometry, and visual state tests.
 ```
+
+## Rendering Modules
+
+`js/ui/tree-layout.js` is a small compatibility facade. The radial layout work is split across focused modules:
+
+- `tree-layout-engine.js` places roots, children, mastery hubs, and connections.
+- `tree-layout-curves.js` renders SVG connection curves and drag handles.
+- `rendered-node.js`, `rendered-mastery-hub.js`, and `rendered-tree.js` generate markup.
+- `tree-layout-position.js` and `tree-layout-sizing.js` hold layout primitives.
+- `svg-path-geometry.js` shares curve math between rendering and drag updates.
 
 ## Usage Flow
 
