@@ -5,12 +5,17 @@ Skill Tree is an experimental web app for organizing study paths as a visual tre
 ## Features
 
 - Create origin nodes and subtopics through the context menu.
+- Create origin nodes from the canvas action bar without opening the context menu.
 - Link mastery circles to independent branches.
 - Calculate origin progress from completed subtopics.
 - Prevent origin nodes from progressing through direct mouse interaction.
 - Reset progress by branch while preserving child origin branches.
 - Move nodes, connection handles, and mastery circles visually.
-- Use themed panels for alerts, confirmations, and text input.
+- Use themed dark panels for alerts, confirmations, text input, and boss questions.
+- Fit the initial tree into the viewport, including narrow mobile screens.
+- Navigate the canvas with toolbar zoom controls, wheel zoom, and middle-button pan.
+- Keep node labels visible and keyboard-focusable for better orientation.
+- Respect reduced-motion preferences for progression effects.
 - Keep drag interactions responsive with frame-scheduled rendering and deferred persistence.
 - Run unit tests and browser smoke tests with Microsoft Edge.
 
@@ -112,9 +117,19 @@ tests/
 
 ## Usage Flow
 
-Use the canvas context menu to create an origin node. From a node, create subtopics or a new child origin when you want to start a separate branch. When subtopics are completed, origin progress is recalculated automatically.
+Use the bottom canvas toolbar to create an origin node at the current viewport center, recenter the tree, or adjust zoom. You can still use the canvas context menu to create an origin node at a specific point.
+
+From a node, create subtopics or a new child origin when you want to start a separate branch. When subtopics are completed, origin progress is recalculated automatically.
 
 A mastery circle appears when an origin has subtopics. It can create a new independent origin, producing a new branch that is visually connected to the mastery circle that created it.
+
+Middle-click and drag to pan the canvas. Use the mouse wheel or toolbar controls to zoom. Node captions remain visible while hover previews provide status details on pointer devices.
+
+## Interface Notes
+
+The interface uses a dark skill-tree theme with branch-colored accents. Context menus, confirmation dialogs, and boss prompts share the same dark surface language so overlays stay visually connected to the canvas.
+
+The first render fits the tree into the current viewport instead of assuming a desktop-sized canvas. This keeps the initial branch visible on mobile while preserving the full-size layout for desktop. Frequent hover motion is limited to precise pointer devices, and users with reduced-motion preferences skip progression animations.
 
 ## Scripts
 
