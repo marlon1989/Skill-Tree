@@ -18,6 +18,10 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
   const contextActionRunner = createContextActionRunner(renderApp);
   const hoverPreviewController = createHoverPreviewController();
 
+  elements.canvasActionBar.addEventListener("click", (event) => {
+    runCanvasToolbarAction(event, elements, canvasCameraController, contextActionRunner);
+  });
+
   elements.canvas.addEventListener("pointerdown", (event) => {
     canvasCameraController.beginPan(event);
   });
@@ -248,10 +252,14 @@ export function initializeInteractions({ getBossQuestion, handleBossFight, rende
   });
 
   renderApp();
+  window.requestAnimationFrame(() => {
+    canvasCameraController.fitInitialTree();
+  });
 }
 
 function captureElements() {
   return {
+    canvasActionBar: document.getElementById("canvas-action-bar"),
     bossConfirm: document.getElementById("boss-modal-confirm"),
     bossModal: document.getElementById("boss-modal"),
     bossOptions: document.getElementById("boss-modal-options"),
@@ -266,6 +274,49 @@ function hoverContentOf(nodeElement) {
   return {
     status: nodeElement.dataset.nodeStatusLabel || nodeElement.dataset.nodeStatus || "",
     title: nodeElement.dataset.nodeTitle || "",
+  };
+}
+
+async function runCanvasToolbarAction(event, elements, canvasCameraController, contextActionRunner) {
+  const toolButton = event.target.closest("[data-canvas-tool]");
+
+  if (!toolButton) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  await canvasToolAction(toolButton.dataset.canvasTool, elements, canvasCameraController, contextActionRunner);
+}
+
+async function canvasToolAction(action, elements, canvasCameraController, contextActionRunner) {
+  if (action === "fit-view") {
+    canvasCameraController.fitTreeToViewport();
+    return;
+  }
+
+  if (action === "zoom-in" || action === "zoom-out") {
+    canvasCameraController.zoomFromControl(action === "zoom-in" ? 1.18 : 0.82);
+    return;
+  }
+
+  if (action === "create-root") {
+    await contextActionRunner.run("create-root", toolbarRootContext(elements.canvas, canvasCameraController));
+  }
+}
+
+function toolbarRootContext(canvasElement, canvasCameraController) {
+  const canvasRect = canvasElement.getBoundingClientRect();
+  const centerPoint = canvasCameraController.stagePointFor(
+    canvasRect.left + canvasRect.width / 2,
+    canvasRect.top + canvasRect.height / 2,
+  );
+
+  return {
+    canvasX: centerPoint.x,
+    canvasY: centerPoint.y,
+    masteryHubId: "",
+    nodeId: "",
   };
 }
 
@@ -330,8 +381,8 @@ function setSelectedBossOption(modalElement, optionsContainer, selectedChoice) {
   optionsContainer.querySelectorAll("[data-choice]").forEach((button) => {
     const isSelected = button.dataset.choice === String(selectedChoice);
 
-    button.classList.toggle("border-blue-500", isSelected);
-    button.classList.toggle("bg-blue-50", isSelected);
-    button.classList.toggle("text-blue-800", isSelected);
+    button.classList.toggle("border-cyan-200", isSelected);
+    button.classList.toggle("bg-cyan-200/20", isSelected);
+    button.classList.toggle("text-cyan-50", isSelected);
   });
 }

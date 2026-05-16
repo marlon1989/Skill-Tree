@@ -29,22 +29,25 @@
     </script>
     <style>
       :root {
+        --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+        --surface-border: rgba(148, 163, 184, 0.18);
+        --surface-panel: rgba(2, 6, 23, 0.94);
         color-scheme: dark;
       }
 
       body {
         background:
-          radial-gradient(circle at 50% 40%, rgba(211, 166, 88, 0.08), transparent 18%),
-          radial-gradient(circle at 20% 18%, rgba(42, 113, 201, 0.18), transparent 28%),
-          radial-gradient(circle at 82% 16%, rgba(46, 208, 220, 0.12), transparent 24%),
+          radial-gradient(circle at 50% 40%, rgba(211, 166, 88, 0.055), transparent 18%),
+          radial-gradient(circle at 20% 18%, rgba(42, 113, 201, 0.12), transparent 28%),
+          radial-gradient(circle at 82% 16%, rgba(46, 208, 220, 0.08), transparent 24%),
           linear-gradient(180deg, #07111e 0%, #091523 42%, #050b14 100%);
       }
 
       #app {
         background:
-          radial-gradient(circle at 50% 48%, rgba(210, 162, 82, 0.1), transparent 18%),
-          radial-gradient(circle at 14% 16%, rgba(65, 131, 240, 0.08), transparent 24%),
-          radial-gradient(circle at 85% 18%, rgba(46, 208, 220, 0.08), transparent 20%),
+          radial-gradient(circle at 50% 48%, rgba(210, 162, 82, 0.075), transparent 18%),
+          radial-gradient(circle at 14% 16%, rgba(65, 131, 240, 0.055), transparent 24%),
+          radial-gradient(circle at 85% 18%, rgba(46, 208, 220, 0.055), transparent 20%),
           linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(6, 10, 19, 0.24));
       }
 
@@ -54,10 +57,10 @@
         inset: 0;
         pointer-events: none;
         background:
-          radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1.5px) 12px 16px / 140px 140px,
-          radial-gradient(circle, rgba(255, 255, 255, 0.04) 0 1px, transparent 1.5px) 80px 72px / 190px 190px,
-          linear-gradient(115deg, transparent 0%, rgba(184, 146, 86, 0.04) 50%, transparent 100%);
-        opacity: 0.9;
+          radial-gradient(circle, rgba(255, 255, 255, 0.055) 0 1px, transparent 1.5px) 12px 16px / 140px 140px,
+          radial-gradient(circle, rgba(255, 255, 255, 0.025) 0 1px, transparent 1.5px) 80px 72px / 190px 190px,
+          linear-gradient(115deg, transparent 0%, rgba(184, 146, 86, 0.03) 50%, transparent 100%);
+        opacity: 0.78;
       }
 
       #app::after {
@@ -86,6 +89,65 @@
       #skill-tree-canvas [data-connection-handle] * {
         cursor: pointer;
       }
+
+      .tree-node-card {
+        outline: none;
+        transition:
+          filter 160ms var(--ease-out-strong),
+          transform 160ms var(--ease-out-strong);
+      }
+
+      .tree-node-card:focus-visible {
+        filter: drop-shadow(0 0 18px var(--branch-glow-strong));
+      }
+
+      .node-drag-handle {
+        transition:
+          opacity 150ms var(--ease-out-strong),
+          transform 150ms var(--ease-out-strong);
+      }
+
+      .node-drag-handle:active {
+        transform: translateX(-50%) scale(0.97);
+      }
+
+      .canvas-tool-button {
+        transition:
+          background-color 150ms var(--ease-out-strong),
+          border-color 150ms var(--ease-out-strong),
+          color 150ms var(--ease-out-strong),
+          transform 150ms var(--ease-out-strong);
+      }
+
+      .canvas-tool-button:active {
+        transform: scale(0.97);
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .tree-node-card:hover {
+          transform: translateY(-3px);
+        }
+
+        .tree-node-card:hover .node-drag-handle,
+        .tree-node-card:focus-within .node-drag-handle {
+          opacity: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 1ms !important;
+        }
+
+        .tree-node-card:hover {
+          transform: none;
+        }
+      }
     </style>
   </head>
   <body class="min-h-screen overflow-hidden bg-[#07111e] font-sans text-slate-900">
@@ -99,8 +161,8 @@
           style="
             background:
               radial-gradient(circle at 50% 48%, rgba(211, 166, 88, 0.08), transparent 16%),
-              radial-gradient(circle at 50% 48%, rgba(211, 166, 88, 0.05), transparent 34%),
-              linear-gradient(90deg, rgba(166, 130, 72, 0.08), transparent 16%, transparent 84%, rgba(166, 130, 72, 0.08));
+              radial-gradient(circle at 50% 48%, rgba(211, 166, 88, 0.035), transparent 34%),
+              linear-gradient(90deg, rgba(166, 130, 72, 0.055), transparent 16%, transparent 84%, rgba(166, 130, 72, 0.055));
           "
         ></div>
       </div>
@@ -111,8 +173,8 @@
         aria-label="Canvas da Skill Tree"
         style="
           background-image:
-            radial-gradient(circle, rgba(148, 163, 184, 0.22) 1px, transparent 1px),
-            radial-gradient(circle, rgba(211, 166, 88, 0.16) 1.4px, transparent 1.4px);
+            radial-gradient(circle, rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+            radial-gradient(circle, rgba(211, 166, 88, 0.1) 1.4px, transparent 1.4px);
           background-position: 0 0, 0 0;
           background-size: 72px 72px, 288px 288px;
         "
@@ -132,9 +194,48 @@
         </div>
       </main>
 
+      <nav
+        id="canvas-action-bar"
+        class="fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-cyan-100/20 bg-slate-950/90 p-1.5 text-slate-100 shadow-2xl backdrop-blur-xl"
+        aria-label="Ferramentas do canvas"
+      >
+        <button
+          type="button"
+          class="canvas-tool-button rounded-md border border-cyan-100/10 bg-cyan-100/10 px-3 py-2 text-sm font-bold text-cyan-50 hover:border-cyan-100/30 hover:bg-cyan-100/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
+          data-canvas-tool="create-root"
+          aria-label="Criar nó de origem no centro"
+        >
+          Origem
+        </button>
+        <button
+          type="button"
+          class="canvas-tool-button flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-base font-bold text-slate-100 hover:border-cyan-100/30 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
+          data-canvas-tool="fit-view"
+          aria-label="Centralizar árvore"
+        >
+          ⌖
+        </button>
+        <button
+          type="button"
+          class="canvas-tool-button flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-base font-bold text-slate-100 hover:border-cyan-100/30 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
+          data-canvas-tool="zoom-out"
+          aria-label="Diminuir zoom"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class="canvas-tool-button flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-base font-bold text-slate-100 hover:border-cyan-100/30 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
+          data-canvas-tool="zoom-in"
+          aria-label="Aumentar zoom"
+        >
+          +
+        </button>
+      </nav>
+
       <div
         id="context-menu"
-        class="fixed z-40 hidden min-w-[220px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-2xl backdrop-blur"
+        class="fixed z-40 hidden min-w-[220px] overflow-hidden rounded-lg border border-cyan-100/20 bg-slate-950/95 p-1.5 text-slate-100 shadow-2xl backdrop-blur-xl"
         role="menu"
         aria-hidden="true"
         data-mastery-hub-id=""
@@ -142,100 +243,100 @@
       >
         <button
           type="button"
-          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          class="hidden w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
           data-action="create-root"
           data-empty-canvas-action="true"
           role="menuitem"
         >
           <span>Criar Nó de Origem</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Root</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-cyan-200/60">Root</span>
         </button>
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
           data-action="add-child"
           data-node-only-action="true"
           role="menuitem"
         >
           <span>Adicionar Subtópico</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">+</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-cyan-200/60">+</span>
         </button>
         <button
           type="button"
-          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          class="hidden w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
           data-action="create-root"
           data-subtopic-only-action="true"
           role="menuitem"
         >
           <span>Criar Nó de Origem</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Root</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-cyan-200/60">Root</span>
         </button>
         <button
           type="button"
-          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-700 transition hover:bg-amber-50"
+          class="hidden w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-amber-100 transition-colors duration-150 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
           data-action="create-root"
           data-mastery-hub-only-action="true"
           role="menuitem"
         >
           <span>Criar Nó de Origem</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-amber-400">Root</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-amber-200/60">Root</span>
         </button>
         <button
           type="button"
-          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-700 transition hover:bg-amber-50"
+          class="hidden w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-amber-100 transition-colors duration-150 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
           data-action="rename-mastery-hub"
           data-mastery-hub-only-action="true"
           role="menuitem"
         >
           <span>Renomear Maestria</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-amber-400">Hub</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-amber-200/60">Hub</span>
         </button>
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
           data-action="rename"
           data-node-only-action="true"
           role="menuitem"
         >
           <span>Renomear</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Edit</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-cyan-200/60">Edit</span>
         </button>
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
           data-action="swap"
           data-node-only-action="true"
           role="menuitem"
         >
           <span>Trocar Posição</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-slate-400">Swap</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-cyan-200/60">Swap</span>
         </button>
         <button
           type="button"
-          class="hidden w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-700 transition hover:bg-amber-50"
+          class="hidden w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-amber-100 transition-colors duration-150 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
           data-action="reset-root-progress"
           data-node-only-action="true"
           data-root-only-action="true"
           role="menuitem"
         >
           <span>Resetar Progresso</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-amber-400">Reset</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-amber-200/60">Reset</span>
         </button>
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-rose-200 transition-colors duration-150 hover:bg-rose-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70"
           data-action="delete"
           data-node-only-action="true"
           role="menuitem"
         >
           <span>Deletar</span>
-          <span class="text-xs uppercase tracking-[0.2em] text-rose-300">Del</span>
+          <span class="text-xs uppercase tracking-[0.2em] text-rose-200/60">Del</span>
         </button>
       </div>
 
       <div
         id="node-hover-modal"
-        class="pointer-events-none fixed z-30 hidden min-w-[180px] rounded-2xl border border-white/15 bg-slate-950/88 px-4 py-3 shadow-2xl backdrop-blur-md"
+        class="pointer-events-none fixed z-30 hidden min-w-[180px] rounded-lg border border-white/20 bg-slate-950/90 px-4 py-3 shadow-2xl backdrop-blur-md"
         aria-hidden="true"
       >
         <p
@@ -250,47 +351,47 @@
 
       <div
         id="boss-modal"
-        class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
         aria-hidden="true"
       >
-        <div class="w-full max-w-xl rounded-[2rem] border border-white/60 bg-white p-6 shadow-2xl md:p-8">
+        <div class="w-full max-w-xl rounded-xl border border-amber-100/20 bg-slate-950/95 p-5 text-slate-100 shadow-2xl md:p-7">
           <div class="mb-6 flex items-start justify-between gap-4">
             <div>
-              <p class="mb-2 text-xs font-medium uppercase tracking-[0.32em] text-amber-500">
+              <p class="mb-2 text-xs font-medium uppercase tracking-[0.32em] text-amber-200/75">
                 Alerta
               </p>
-              <h2 id="boss-modal-title" class="text-2xl font-bold text-slate-900">
+              <h2 id="boss-modal-title" class="font-display text-2xl font-bold text-amber-100">
                 Conselho
               </h2>
-              <p id="boss-modal-subtitle" class="mt-2 text-sm leading-6 text-slate-500">
+              <p id="boss-modal-subtitle" class="mt-2 text-sm leading-6 text-slate-300">
                 Antes de prosseguir, é recomendável que você tenha tentado se autoexplicar, refletir ou resolver questões desse tópico.
               </p>
             </div>
           </div>
 
-          <section id="boss-modal-question-panel" class="rounded-3xl bg-slate-50 p-5">
-            <p id="boss-modal-question" class="text-base font-medium leading-7 text-slate-800">
+          <section id="boss-modal-question-panel" class="rounded-lg border border-white/10 bg-white/5 p-5">
+            <p id="boss-modal-question" class="text-base font-medium leading-7 text-slate-100">
               Qual é o resultado de 7 + 8?
             </p>
 
             <div id="boss-modal-options" class="mt-5 grid gap-3">
               <button
                 type="button"
-                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                class="boss-option rounded-lg border border-white/10 bg-slate-950/70 px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:border-cyan-200/40 hover:bg-cyan-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
                 data-choice="0"
               >
                 14
               </button>
               <button
                 type="button"
-                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                class="boss-option rounded-lg border border-white/10 bg-slate-950/70 px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:border-cyan-200/40 hover:bg-cyan-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
                 data-choice="1"
               >
                 15
               </button>
               <button
                 type="button"
-                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+                class="boss-option rounded-lg border border-white/10 bg-slate-950/70 px-4 py-3 text-left text-sm font-medium text-slate-100 transition-colors duration-150 hover:border-cyan-200/40 hover:bg-cyan-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
                 data-choice="2"
               >
                 16
@@ -302,7 +403,7 @@
             <button
               id="boss-modal-confirm"
               type="button"
-              class="rounded-full bg-blue-800 px-5 py-3 text-sm font-bold text-white shadow-glow transition hover:bg-blue-700"
+              class="rounded-md border border-cyan-100/20 bg-cyan-200/10 px-5 py-3 text-sm font-bold text-cyan-50 shadow-glow transition hover:bg-cyan-200/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 active:scale-[0.97]"
             >
               Confirmar
             </button>
@@ -312,11 +413,11 @@
 
       <div
         id="theme-alert"
-        class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+        class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
         aria-hidden="true"
       >
         <section
-          class="w-full max-w-md rounded-3xl border border-amber-200/40 bg-[#07111e]/95 p-6 text-slate-100 shadow-2xl"
+          class="w-full max-w-md rounded-xl border border-amber-200/25 bg-slate-950/95 p-6 text-slate-100 shadow-2xl"
           role="alertdialog"
           aria-labelledby="theme-alert-title"
           aria-describedby="theme-alert-body"
@@ -333,20 +434,20 @@
           <input
             id="theme-alert-input"
             type="text"
-            class="mt-5 hidden w-full rounded-2xl border border-amber-200/25 bg-slate-950/70 px-4 py-3 text-sm font-medium text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-200/70"
+            class="mt-5 hidden w-full rounded-lg border border-amber-200/25 bg-slate-950/70 px-4 py-3 text-sm font-medium text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-amber-200/70 focus-visible:ring-2 focus-visible:ring-amber-200/50"
           />
           <div class="mt-6 flex justify-end gap-3">
             <button
               id="theme-alert-cancel"
               type="button"
-              class="hidden rounded-full border border-slate-400/25 bg-slate-100/5 px-5 py-2 text-sm font-bold text-slate-200 transition hover:bg-slate-100/10"
+              class="hidden rounded-md border border-slate-400/25 bg-slate-100/5 px-5 py-2 text-sm font-bold text-slate-200 transition hover:bg-slate-100/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200/60 active:scale-[0.97]"
             >
               Cancelar
             </button>
             <button
               id="theme-alert-close"
               type="button"
-              class="rounded-full border border-amber-200/35 bg-amber-300/10 px-5 py-2 text-sm font-bold text-amber-100 transition hover:bg-amber-300/20"
+              class="rounded-md border border-amber-200/35 bg-amber-300/10 px-5 py-2 text-sm font-bold text-amber-100 transition hover:bg-amber-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/60 active:scale-[0.97]"
             >
               Entendi
             </button>

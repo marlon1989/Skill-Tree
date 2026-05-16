@@ -28,6 +28,26 @@ export function defaultCanvasCameraState() {
   };
 }
 
+/**
+ * Fit rendered tree bounds into the current viewport without upscaling small trees.
+ * Example:
+ *   fittedCanvasCameraState({ left: 0, top: 0, width: 800, height: 400 }, { width: 400, height: 300 }, 32).zoom < 1
+ */
+export function fittedCanvasCameraState(contentBounds, viewportSize, viewportPadding = 40) {
+  const normalizedBounds = normalizedContentBounds(contentBounds);
+  const normalizedViewport = normalizedViewportSize(viewportSize);
+  const safePadding = Math.max(0, Number(viewportPadding) || 0);
+  const availableWidth = Math.max(1, normalizedViewport.width - safePadding * 2);
+  const availableHeight = Math.max(1, normalizedViewport.height - safePadding * 2);
+  const nextZoom = Math.min(
+    1,
+    clampedCanvasZoom(availableWidth / normalizedBounds.width),
+    clampedCanvasZoom(availableHeight / normalizedBounds.height),
+  );
+
+  return centeredCameraState(normalizedBounds, normalizedViewport, nextZoom);
+}
+
 export function pannedCanvasCameraState(cameraState, deltaX, deltaY) {
   const normalizedCamera = normalizedCameraState(cameraState);
 
@@ -35,6 +55,21 @@ export function pannedCanvasCameraState(cameraState, deltaX, deltaY) {
     offsetX: normalizedCamera.offsetX + Number(deltaX),
     offsetY: normalizedCamera.offsetY + Number(deltaY),
     zoom: normalizedCamera.zoom,
+  };
+}
+
+export function scaledCanvasCameraState(cameraState, zoomFactor, canvasRect) {
+  const normalizedCamera = normalizedCameraState(cameraState);
+  const normalizedCanvas = normalizedCanvasRect(canvasRect);
+  const centerX = normalizedCanvas.left + normalizedCanvas.width / 2;
+  const centerY = normalizedCanvas.top + normalizedCanvas.height / 2;
+  const stagePoint = canvasStagePoint(centerX, centerY, normalizedCanvas, normalizedCamera);
+  const nextZoom = clampedCanvasZoom(normalizedCamera.zoom * (Number(zoomFactor) || 1));
+
+  return {
+    offsetX: normalizedCanvas.width / 2 - stagePoint.x * nextZoom,
+    offsetY: normalizedCanvas.height / 2 - stagePoint.y * nextZoom,
+    zoom: nextZoom,
   };
 }
 
@@ -52,10 +87,45 @@ export function zoomedCanvasCameraState(cameraState, wheelDeltaY, clientX, clien
   };
 }
 
+function centeredCameraState(contentBounds, viewportSize, zoomValue) {
+  return {
+    offsetX: (viewportSize.width - contentBounds.width * zoomValue) / 2 -
+      contentBounds.left * zoomValue,
+    offsetY: (viewportSize.height - contentBounds.height * zoomValue) / 2 -
+      contentBounds.top * zoomValue,
+    zoom: zoomValue,
+  };
+}
+
+function normalizedCanvasRect(canvasRect) {
+  return {
+    height: Math.max(1, Number(canvasRect?.height ?? 1)),
+    left: Number(canvasRect?.left ?? 0),
+    top: Number(canvasRect?.top ?? 0),
+    width: Math.max(1, Number(canvasRect?.width ?? 1)),
+  };
+}
+
 function normalizedCameraState(cameraState) {
   return {
     offsetX: Number(cameraState?.offsetX ?? 0),
     offsetY: Number(cameraState?.offsetY ?? 0),
     zoom: clampedCanvasZoom(cameraState?.zoom ?? 1),
+  };
+}
+
+function normalizedContentBounds(contentBounds) {
+  return {
+    height: Math.max(1, Number(contentBounds?.height ?? 1)),
+    left: Number(contentBounds?.left ?? 0),
+    top: Number(contentBounds?.top ?? 0),
+    width: Math.max(1, Number(contentBounds?.width ?? 1)),
+  };
+}
+
+function normalizedViewportSize(viewportSize) {
+  return {
+    height: Math.max(1, Number(viewportSize?.height ?? 1)),
+    width: Math.max(1, Number(viewportSize?.width ?? 1)),
   };
 }

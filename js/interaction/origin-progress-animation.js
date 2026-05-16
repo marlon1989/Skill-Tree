@@ -12,6 +12,11 @@ export function animateOriginProgress(nodeId, fromProgress, toProgress, onComple
     return;
   }
 
+  if (prefersReducedMotion()) {
+    onComplete();
+    return;
+  }
+
   const animatedRing = buildAnimatedRing();
   const coreElement = orbElement.lastElementChild;
   const startAngle = progressToAngle(fromProgress);
@@ -101,6 +106,10 @@ function nodeKeyframes() {
 
 function progressToAngle(progressValue) {
   return Math.max(0, Math.min(100, Number(progressValue) || 0)) * 3.6;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
 function ringGradient(angle) {

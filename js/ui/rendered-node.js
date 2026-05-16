@@ -24,6 +24,21 @@ export class RenderedNode {
     `;
   }
 
+  titleCaptionMarkup(titleMarkup) {
+    if (this.treeNode.isOrigin()) {
+      return "";
+    }
+
+    return `
+      <p
+        class="node-title-caption relative left-1/2 mt-2 w-max max-w-[9rem] -translate-x-1/2 text-center text-[12px] font-medium leading-4 text-slate-200/90"
+        data-node-title-caption="true"
+      >
+        ${titleMarkup}
+      </p>
+    `;
+  }
+
   toMarkup() {
     const visualState = NodeVisualState.resolve(this.treeNode);
     const nodeSize = this.position.size();
@@ -34,7 +49,7 @@ export class RenderedNode {
 
     return `
       <article
-        class="group absolute z-[4] flex cursor-pointer flex-col items-center text-center text-slate-100 transition-transform duration-300 hover:-translate-y-1"
+        class="tree-node-card group absolute z-[4] flex cursor-pointer flex-col items-center text-center text-slate-100"
         aria-label="${ariaLabel}"
         data-node-id="${this.treeNode.id().toMarkup()}"
         data-node-kind="${this.treeNode.isOrigin() ? "origin" : "subtopic"}"
@@ -47,6 +62,7 @@ export class RenderedNode {
         data-node-title="${titleMarkup}"
         data-node-visual-status="${visualState.key().toMarkup()}"
         data-decay-multiplier="${this.treeNode.decayMultiplierLabel()}"
+        tabindex="0"
         style="left:${this.position.left()}px; top:${this.position.top()}px; width:${nodeSize}px; ${this.branchTheme.cssVariables()}"
       >
         ${this.rootBannerMarkup()}
@@ -63,14 +79,17 @@ export class RenderedNode {
             ${visualState.badgeMarkup(this.treeNode)}
           </div>
         </div>
+        ${this.titleCaptionMarkup(titleMarkup)}
         <button
           type="button"
-          class="absolute left-1/2 top-full z-[5] mt-3 h-4 w-12 -translate-x-1/2 rounded-full border opacity-55 transition hover:scale-105 hover:opacity-100 group-hover:opacity-100"
+          class="node-drag-handle absolute left-1/2 top-full z-[5] mt-3 flex h-4 w-12 -translate-x-1/2 items-center justify-center rounded-full border opacity-70"
           data-node-drag-handle="true"
           data-drag-node-id="${this.treeNode.id().toMarkup()}"
           aria-label="Mover nó"
           style="background:rgba(5,9,20,0.85); border-color:var(--branch-plaque-border); box-shadow:0 0 16px var(--branch-shadow);"
-        ></button>
+        >
+          <span aria-hidden="true" class="h-[2px] w-5 rounded-full bg-slate-200/60"></span>
+        </button>
       </article>
     `;
   }
